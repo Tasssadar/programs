@@ -18,153 +18,147 @@ Record lastRec;
 void SetMovement(char key[])
 {
     // Set Movement Flags
-    if(key[1] == ' ') // <- one character keys
+    bool down = key[findSpace(key)+1] == 'd';
+    // only down keys
+    if(down)
     {
-        bool down = key[3] == 'd';
-        // only down keys
-        if(down)
-        {
-            switch(key[0])
-            {
-                //speed
-                case '1': speed = 50;  break;
-                case '2': speed = 100; break;
-                case '3': speed = 127; break;
-                case 'R':   // reset encoders
-                    re.clear();
-                    le.clear();
-                    break;
-                case 'Q':   // on/off correction
-                    rs232.send("Engine correction is ");
-                    if(state & STATE_CORRECTION)
-                    {
-                        state &= ~(STATE_CORRECTION);
-                        rs232.send("disabled \r\n");
-                    }
-                    else
-                    {
-                        state |= STATE_CORRECTION;
-                        rs232.send("enabled \r\n");
-                    }
-                    break;
-                case 'C':
-                    rs232.wait();
-                    setMotorPower(0, 0);
-                    le_cor.stop();
-                    re_cor.stop();
-                    moveflags = MOVE_NONE;
-                    if(!(state & STATE_RECORD))
-                    {
-                        state |= STATE_RECORD;
-                        recordIter = 0;
-                        lastAdress = 0;
-                        rs232.send("Erasing EEPROM...");
-                        state |= STATE_ERASING;
-                        for(uint8_t i = 0; i < MEM_SIZE+1; ++i)
-                        {
-                            Record rec;
-                            rec.filled = false;
-                            write_mem(&rec, lastAdress);
-                            lastAdress+= REC_SIZE;
-                        }
-                        state &= ~(STATE_ERASING);
-                        rs232.send("done\r\n");
-                        lastAdress = 0;
-                    }
-                    else
-                    {
-                        lastRec.time = recordTime.getTime()/10000;
-                        write_mem(&lastRec, lastAdress);                   
-                        lastAdress+=REC_SIZE;
-                        recordTime.stop();
-                        recordTime.clear();
-                        recordIter = 0;
-                        state &= ~(STATE_RECORD);
-                    }
-                    rs232.send("Trace recording is ");
-                    if(state & STATE_RECORD){ rs232.send("enabled \r\n");}
-                    else {rs232.send("disabled \r\n");}
-                    break;
-                case 'P':
-                    le_cor.stop();
-                    re_cor.stop();
-                    moveflags = MOVE_NONE;
-                    setMotorPower(0, 0);
-
-                    if(!(state & STATE_PLAY))
-                    {  
-                        recordTime.stop();
-                        recordTime.clear();
-                        rs232.send("Playing..\r\n");   
-                        recordIter = 0; 
-                        lastAdress = 0;              
-                        state |= STATE_PLAY;
-                        state &= ~(STATE_RECORD);
-                    }
-                    else
-                    {
-                        rs232.send("Playback stopped\r\n");
-                        state &= ~(STATE_PLAY);
-                    }
-                    rs232.sendNumber(state);
-                    break;
-                case 'O':
-                    if(state & STATE_RECORD)
-                       break;
-                    rs232.send("Playback ");
-                    if(state & STATE_PLAY)
-                    {
-                        rs232.send("unpaused\r\n");
-                        state &= ~(STATE_PLAY);
-                    }
-                    else
-                    {
-                        setMotorPower(0, 0);
-                        le_cor.stop();
-                        re_cor.stop();
-                        moveflags = MOVE_NONE;
-                        rs232.send("paused\r\n");
-                        state |= STATE_PLAY;
-                    }
-                    break;
-           }
-        }
-        // Movement
         switch(key[0])
         {
-            case 'W':
-                if(!(moveflags & MOVE_BACKWARD))
+            //speed
+            case '1': speed = 50;  break;
+            case '2': speed = 100; break;
+            case '3': speed = 127; break;
+            case 'R':   // reset encoders
+                re.clear();
+                le.clear();
+                break;
+            case 'Q':   // on/off correction
+                rs232.send("Engine correction is ");
+                if(state & STATE_CORRECTION)
                 {
-                    if(down) moveflags |= MOVE_FORWARD;
-                    else moveflags &= ~(MOVE_FORWARD);	
+                    state &= ~(STATE_CORRECTION);
+                    rs232.send("disabled \r\n");
+                }
+                else
+                {
+                  state |= STATE_CORRECTION;
+                    rs232.send("enabled \r\n");
                 }
                 break;
-            case 'S':
-                if(!(moveflags & MOVE_FORWARD))
+            case 'C':
+                rs232.wait();
+                setMotorPower(0, 0);
+                le_cor.stop();
+                re_cor.stop();
+                moveflags = MOVE_NONE;
+                if(!(state & STATE_RECORD))
                 {
-                    if(down) moveflags |= MOVE_BACKWARD;
-                    else moveflags &= ~(MOVE_BACKWARD);	
+                    state |= STATE_RECORD;
+                    recordIter = 0;
+                    lastAdress = 0;
+                    rs232.send("Erasing EEPROM...");
+                    state |= STATE_ERASING;
+                    Record rec;
+                    rec.filled = false;
+                    for(uint8_t i = 0; i < MEM_SIZE+1; ++i)
+                    {
+                        write_mem(&rec, lastAdress);
+                        lastAdress += REC_SIZE;
+                    }
+                    state &= ~(STATE_ERASING);
+                    rs232.send("done\r\n");
+                    lastAdress = 0;
+                }
+                else
+                {
+                    lastRec.time = recordTime.getTime()/10000;
+                    write_mem(&lastRec, lastAdress);                   
+                    recordTime.stop();
+                    recordTime.clear();
+                    recordIter = 0;
+                    state &= ~(STATE_RECORD);
+                }
+                rs232.send("Trace recording is ");
+                if(state & STATE_RECORD){ rs232.send("enabled \r\n");}
+                else {rs232.send("disabled \r\n");}
+                break;
+            case 'P':
+                le_cor.stop();
+                re_cor.stop();
+                moveflags = MOVE_NONE;
+                setMotorPower(0, 0);
+
+                if(!(state & STATE_PLAY))
+                {  
+                    recordTime.stop();
+                    recordTime.clear();
+                    rs232.send("Playing..\r\n");   
+                    recordIter = 0; 
+                    lastAdress = 0;              
+                    state |= STATE_PLAY;
+                    state &= ~(STATE_RECORD);
+                }
+                else
+                {
+                    rs232.send("Playback stopped\r\n");
+                    state &= ~(STATE_PLAY);
                 }
                 break;
-            case 'A':
-                if(!(moveflags & MOVE_RIGHT))
+            case 'O':
+                if(state & STATE_RECORD)
+                   break;
+                rs232.send("Playback ");
+                if(state & STATE_PLAY)
                 {
-                    if(down) moveflags |= MOVE_LEFT;
-                    else moveflags &= ~(MOVE_LEFT);
-                } 
-                break;
-            case 'D':
-                if(!(moveflags & MOVE_LEFT))
+                    rs232.send("unpaused\r\n");
+                    state &= ~(STATE_PLAY);
+                }
+                else
                 {
-                    if(down) moveflags |= MOVE_RIGHT;
-                    else moveflags &= ~(MOVE_RIGHT);
+                    setMotorPower(0, 0);
+                    le_cor.stop();
+                    re_cor.stop();
+                    moveflags = MOVE_NONE;
+                    rs232.send("paused\r\n");
+                    state |= STATE_PLAY;
                 }
                 break;
-        }
-        
+       }
+    }
+    // Movement
+    switch(key[0])
+    {
+        case 'W':
+            if(!(moveflags & MOVE_BACKWARD))
+            {
+                if(down) moveflags |= MOVE_FORWARD;
+                else moveflags &= ~(MOVE_FORWARD);	
+            }
+            break;
+        case 'S':
+            if(!(moveflags & MOVE_FORWARD))
+            {
+                if(down) moveflags |= MOVE_BACKWARD;
+                else moveflags &= ~(MOVE_BACKWARD);	
+            }
+            break;
+        case 'A':
+            if(!(moveflags & MOVE_RIGHT))
+            {
+                if(down) moveflags |= MOVE_LEFT;
+                else moveflags &= ~(MOVE_LEFT);
+            } 
+            break;
+        case 'D':
+            if(!(moveflags & MOVE_LEFT))
+            {
+                if(down) moveflags |= MOVE_RIGHT;
+                else moveflags &= ~(MOVE_RIGHT);
+            }
+            break;
     }
     // Sensors
-    else if(key[0] == 'S' && key[4] == 'e' && key[7] == 'd') // Space
+    if(key[0] == 'S' && key[4] == 'e' && down) // Space
     {
         rs232.wait();
         rs232.send("\r\nSensors: \r\n");
@@ -315,15 +309,22 @@ void run()
 
         key[key_itr] = ch;
         ++key_itr;
-        if((key[0] == 'O' || key[0] == 'P') && key_itr >= 4)
+        if((key[0] == 'O' || key[0] == 'P') && key_itr >= 3)
         {
             while(key_itr < 10)
                 key[++key_itr] = '0';
             key_itr = 0;
             SetMovement(key);
         }
-        else if((ch == 'd'  || ch == 'u') && key_itr >= 4 && !(state & STATE_PLAY))
+        else if((ch == 'd'  || ch == 'u') && key_itr >= 3 && !(state & STATE_PLAY))
         {
+            //Too long key
+            if(key_itr >= 8)
+            {
+                key[5] = key[findSpace(key)];
+                key[6] = key[findSpace(key)+1];
+                key_itr = 7;
+            }
             while(key_itr < 10)
                 key[++key_itr] = '0';
             key_itr = 0;
@@ -335,14 +336,6 @@ void run()
                     recordTime.clear();
                     recordTime.start();
                 }
-                // FIXME: ignore two or more keys at once
-                if(lastRec.key[findSpace(lastRec.key)+2] == 'd' && key[findSpace(key)+2] != 'u')
-                {
-                    while(key_itr < 10)
-                        key[++key_itr] = '0';
-                    key_itr = 0;
-                    continue;
-                }
 
                 if(recordIter > 0)
                 {
@@ -352,7 +345,7 @@ void run()
                 }
                 if(recordIter < MEM_SIZE)
                 {
-                    while(key_itr < 10)
+                    while(key_itr < 7)
                     {
                         lastRec.key[key_itr] = key[key_itr];
                         ++key_itr;
@@ -366,8 +359,7 @@ void run()
                 {
                     key[0] = 'C';
                     key[1] = ' ';
-                    key[2] = '-';
-                    key[3] = 'd';
+                    key[2] = 'd';
                     rs232.send("Memory full\r\n");
                     SetMovement(key);
                     continue;

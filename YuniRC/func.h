@@ -2,7 +2,7 @@
 void write_mem(Record *rec, uint16_t adress_beg)
 {   
     // write keys
-    for(uint8_t i = 0; i < 10; ++i)
+    for(uint8_t i = 0; i < 7; ++i)
     {
        while(EECR & (1<< EEPE)){} // wait for prev
        EEARH = uint8_t(adress_beg+i >> 8);
@@ -13,21 +13,21 @@ void write_mem(Record *rec, uint16_t adress_beg)
     }
     while(EECR & (1<< EEPE)){}
     //write time
-    EEARH = uint8_t(adress_beg+10 >> 8);
-    EEARL = uint8_t(adress_beg+10);
+    EEARH = uint8_t(adress_beg+7 >> 8);
+    EEARL = uint8_t(adress_beg+7);
     EEDR = uint8_t((rec->time >> 8));
     EECR |= (1<< EEMPE);
     EECR |= (1<< EEPE);
     while(EECR & (1<< EEPE)){}
-    EEARH = uint8_t(adress_beg+11 >> 8);
-    EEARL = uint8_t(adress_beg+11);
+    EEARH = uint8_t(adress_beg+8 >> 8);
+    EEARL = uint8_t(adress_beg+8);
     EEDR = uint8_t(rec->time & 0xFF);
     EECR |= (1<< EEMPE);
     EECR |= (1<< EEPE);
     while(EECR & (1<< EEPE)){}
     // and filled
-    EEARH = uint8_t(adress_beg+12 >> 8);
-    EEARL = uint8_t(adress_beg+12);
+    EEARH = uint8_t(adress_beg+9 >> 8);
+    EEARL = uint8_t(adress_beg+9);
     EEDR = uint8_t(rec->filled);
     EECR |= (1<< EEMPE);
     EECR |= (1<< EEPE);
@@ -36,7 +36,7 @@ void write_mem(Record *rec, uint16_t adress_beg)
 void read_mem(Record *rec, uint16_t adress_beg)
 {
     while(EECR & (1<< EEPE)){} // wait for prev
-    for(uint8_t i = 0; i < 10; ++i)
+    for(uint8_t i = 0; i < 7; ++i)
     {
        EEARH = uint8_t(adress_beg+i >> 8);
        EEARL = uint8_t(adress_beg+i);
@@ -44,17 +44,17 @@ void read_mem(Record *rec, uint16_t adress_beg)
        rec->key[i] = char(EEDR); 
     }
     // time...
-    EEARH = uint8_t(adress_beg+10 >> 8);
-    EEARL = uint8_t(adress_beg+10);
+    EEARH = uint8_t(adress_beg+7 >> 8);
+    EEARL = uint8_t(adress_beg+7);
     EECR |= (1<< EERE);  
     rec->time = (EEDR << 8);
-    EEARH = uint8_t(adress_beg+11 >> 8);
-    EEARL = uint8_t(adress_beg+11);
+    EEARH = uint8_t(adress_beg+8 >> 8);
+    EEARL = uint8_t(adress_beg+8);
     EECR |= (1<< EERE);
     rec->time |= (EEDR & 0xFF);
     //filled
-    EEARH = uint8_t(adress_beg+12 >> 8);
-    EEARL = uint8_t(adress_beg+12);
+    EEARH = uint8_t(adress_beg+9 >> 8);
+    EEARL = uint8_t(adress_beg+9);
     EECR |= (1<< EERE);
     rec->filled = bool(EEDR);
     
