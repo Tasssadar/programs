@@ -15,10 +15,11 @@ Record lastRec;
 
 #include "func.h"
 
-void SetMovement(uint8_t key[])
+bool SetMovement(uint8_t key[])
 {
     // Set Movement Flags
     bool down = key[1] == uint8_t('d');
+    bool down_only = false;
     // only down keys
     if(down)
     {
@@ -158,6 +159,9 @@ void SetMovement(uint8_t key[])
                 else moveflags &= ~(MOVE_RIGHT);
             }
             break;
+        default:
+            down_only = true;
+            break;
     }
     // Sensors
     if(char(key[0]) == ' ' && down) // Space
@@ -232,6 +236,7 @@ void SetMovement(uint8_t key[])
         le_cor.stop();
         re_cor.stop();
     }
+    return down_only;
 }
 
 void MovementCorrection()
@@ -316,12 +321,11 @@ void run()
         if(key_itr >= 2)
         {
             key_itr = 0;
+            bool down_only = SetMovement(key);
             if(char(key[0]) == 'O' || char(key[0]) == 'P')
-            {
-                SetMovement(key);
                 continue;
-            }
-            else if((state & STATE_RECORD) && char(key[0]) != 'C')
+            else if((state & STATE_RECORD) && char(key[0]) != 'C' &&
+                (!down_only || (down_only && char(key[1]) == 'd'))) // do not record down only keys
             {
                 if(!recordTime.isRunning())
                 {
@@ -351,11 +355,9 @@ void run()
                     key[0] = uint8_t('C');
                     key[1] = uint8_t('d');
                     rs232.send("Memory full\r\n");
-                    SetMovement(key);
                     continue;
                 }
             };
-            SetMovement(key);
         }
     }
 }
