@@ -15,7 +15,7 @@ enum rangeFinderPos
     FINDER_RIGHT      = 0xE4
 };
 #define RANGE_CENTIMETRES 0x51
-#define MEM_SIZE 127
+#define MEM_SIZE 128
 #define REC_SIZE 4 // sizeof(Record)
 
 struct Record

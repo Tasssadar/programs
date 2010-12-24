@@ -24,10 +24,10 @@ void SetMovement(uint8_t key[])
     {
         switch(char(key[0]))
         {
-            //speed
-            case '1': speed = 50;  break;
-            case '2': speed = 100; break;
-            case '3': speed = 127; break;
+            //speed (1 2 3 on keyboard Oo)
+            case 'a': speed = 50;  break;
+            case 'b': speed = 100; break;
+            case 'c': speed = 127; break; 
             case 'R':   // reset encoders
                 re.clear();
                 le.clear();
@@ -62,7 +62,7 @@ void SetMovement(uint8_t key[])
                     rec.time = 0;
                     rec.key[0] = 0;
                     rec.key[1] = 0;
-                    for(uint8_t i = 0; i < MEM_SIZE+1; ++i)
+                    for(uint8_t i = 0; i < MEM_SIZE; ++i)
                     {
                         write_mem(&rec, lastAdress);
                         lastAdress += REC_SIZE;
@@ -289,7 +289,8 @@ void run()
             Record rec;
             read_mem(&rec, lastAdress);
             lastAdress += REC_SIZE;
-            if(rec.key[0] == 0 && rec.key[1] == 0 && rec.time == 0)
+            if((rec.key[0] == 0 && rec.key[1] == 0 && rec.time == 0) ||
+               lastAdress > 512)
             {
                 state &= ~(STATE_PLAY);
                 rs232.send("Playback finished\r\n");
@@ -334,7 +335,7 @@ void run()
                     write_mem(&lastRec, lastAdress);                   
                     lastAdress+=REC_SIZE;
                 }
-                if(recordIter < MEM_SIZE)
+                if(recordIter < MEM_SIZE-1)
                 {
                     while(key_itr < 2)
                     {
