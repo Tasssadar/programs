@@ -15,14 +15,14 @@ enum rangeFinderPos
     FINDER_RIGHT      = 0xE4
 };
 #define RANGE_CENTIMETRES 0x51
-#define MEM_SIZE 50
-#define REC_SIZE 10 // sizeof(Record)
+#define MEM_SIZE 127
+#define REC_SIZE 4 // sizeof(Record)
 
 struct Record
 {
-    char key[7];
+    uint8_t key[2];
     uint16_t time;
-    bool filled;
+    //bool filled;
 };
 
 /*enum rangeMethods 

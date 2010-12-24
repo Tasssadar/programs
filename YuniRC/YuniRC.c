@@ -15,14 +15,14 @@ Record lastRec;
 
 #include "func.h"
 
-void SetMovement(char key[])
+void SetMovement(uint8_t key[])
 {
     // Set Movement Flags
-    bool down = key[findSpace(key)+1] == 'd';
+    bool down = key[1] == uint8_t('d');
     // only down keys
     if(down)
     {
-        switch(key[0])
+        switch(char(key[0]))
         {
             //speed
             case '1': speed = 50;  break;
@@ -59,7 +59,9 @@ void SetMovement(char key[])
                     rs232.send("Erasing EEPROM...");
                     state |= STATE_ERASING;
                     Record rec;
-                    rec.filled = false;
+                    rec.time = 0;
+                    rec.key[0] = 0;
+                    rec.key[1] = 0;
                     for(uint8_t i = 0; i < MEM_SIZE+1; ++i)
                     {
                         write_mem(&rec, lastAdress);
@@ -126,7 +128,7 @@ void SetMovement(char key[])
        }
     }
     // Movement
-    switch(key[0])
+    switch(char(key[0]))
     {
         case 'W':
             if(!(moveflags & MOVE_BACKWARD))
@@ -158,7 +160,7 @@ void SetMovement(char key[])
             break;
     }
     // Sensors
-    if(key[0] == 'S' && key[4] == 'e' && down) // Space
+    if(char(key[0]) == ' ' && down) // Space
     {
         rs232.wait();
         rs232.send("\r\nSensors: \r\n");
@@ -249,11 +251,10 @@ void MovementCorrection()
 
 void run()
 {
-    
-    char key[10];
+    uint8_t key[2];
     uint8_t key_itr = 0;
-    while(key_itr < 10)
-        key[++key_itr] = '0';
+    while(key_itr < 2)
+        key[++key_itr] = 0;
     key_itr = 0;
     moveflags = 0;
     recordIter = 0;
@@ -288,7 +289,7 @@ void run()
             Record rec;
             read_mem(&rec, lastAdress);
             lastAdress += REC_SIZE;
-            if(!rec.filled)
+            if(rec.key[0] == 0 && rec.key[1] == 0 && rec.time == 0)
             {
                 state &= ~(STATE_PLAY);
                 rs232.send("Playback finished\r\n");
@@ -307,29 +308,19 @@ void run()
         if(!rs232.peek(ch))
             continue;
 
-        key[key_itr] = ch;
+        key[key_itr] = uint8_t(ch);
         ++key_itr;
-        if((key[0] == 'O' || key[0] == 'P') && key_itr >= 3)
+        
+        //key recieved
+        if(key_itr >= 2)
         {
-            while(key_itr < 10)
-                key[++key_itr] = '0';
             key_itr = 0;
-            SetMovement(key);
-        }
-        else if((ch == 'd'  || ch == 'u') && key_itr >= 3 && !(state & STATE_PLAY))
-        {
-            //Too long key
-            if(key_itr >= 8)
+            if(char(key[0]) == 'O' || char(key[0]) == 'P')
             {
-                key[5] = key[findSpace(key)];
-                key[6] = key[findSpace(key)+1];
-                key_itr = 7;
+                SetMovement(key);
+                continue;
             }
-            while(key_itr < 10)
-                key[++key_itr] = '0';
-            key_itr = 0;
-             
-            if((state & STATE_RECORD) && key[0] != 'C')
+            else if((state & STATE_RECORD) && char(key[0]) != 'C')
             {
                 if(!recordTime.isRunning())
                 {
@@ -345,21 +336,19 @@ void run()
                 }
                 if(recordIter < MEM_SIZE)
                 {
-                    while(key_itr < 7)
+                    while(key_itr < 2)
                     {
                         lastRec.key[key_itr] = key[key_itr];
                         ++key_itr;
                     }
                     key_itr = 0;
-                    lastRec.filled = true;
                     recordTime.clear();
                     ++recordIter;
                 }
                 else
                 {
-                    key[0] = 'C';
-                    key[1] = ' ';
-                    key[2] = 'd';
+                    key[0] = uint8_t('C');
+                    key[1] = uint8_t('d');
                     rs232.send("Memory full\r\n");
                     SetMovement(key);
                     continue;
