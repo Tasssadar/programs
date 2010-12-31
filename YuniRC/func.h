@@ -1,30 +1,31 @@
 
+inline void write_byte(uint16_t adress, uint8_t byte)
+{
+    while(EECR & (1<< EEPE)){}
+    EEARH = uint8_t(adress >> 8);
+    EEARL = uint8_t(adress);
+    EEDR = byte;
+    EECR |= (1<< EEMPE);
+    EECR |= (1<< EEPE);
+}
+
+inline uint8_t read_byte(uint16_t adress)
+{
+    while(EECR & (1<< EEPE)){}
+    EEARH = uint8_t(adress >> 8);
+    EEARL = uint8_t(adress);
+    EECR |= (1<< EERE);
+    return EEDR;
+}
+
 void write_mem(Record *rec, uint16_t adress_beg)
 {   
     // write keys
     for(uint8_t i = 0; i < 2; ++i)
-    {
-       while(EECR & (1<< EEPE)){} // wait for prev
-       EEARH = uint8_t(adress_beg+i >> 8);
-       EEARL = uint8_t(adress_beg+i);
-       EEDR = rec->key[i];
-       EECR |= (1<< EEMPE);
-       EECR |= (1<< EEPE);
-    }
-    while(EECR & (1<< EEPE)){}
+       write_byte(adress_beg+i, rec->key[i]);
     //write time
-    EEARH = uint8_t(adress_beg+2 >> 8);
-    EEARL = uint8_t(adress_beg+2);
-    EEDR = uint8_t((rec->time >> 8));
-    EECR |= (1<< EEMPE);
-    EECR |= (1<< EEPE);
-    while(EECR & (1<< EEPE)){}
-    EEARH = uint8_t(adress_beg+3 >> 8);
-    EEARL = uint8_t(adress_beg+3);
-    EEDR = uint8_t(rec->time & 0xFF);
-    EECR |= (1<< EEMPE);
-    EECR |= (1<< EEPE);
-    while(EECR & (1<< EEPE)){}
+    write_byte(adress_beg+2, uint8_t(rec->time >> 8));
+    write_byte(adress_beg+3, uint8_t(rec->time & 0xFF));
     // and filled
  /*   EEARH = uint8_t(adress_beg+4 >> 8);
     EEARL = uint8_t(adress_beg+4);
@@ -37,21 +38,10 @@ void read_mem(Record *rec, uint16_t adress_beg)
 {
     while(EECR & (1<< EEPE)){} // wait for prev
     for(uint8_t i = 0; i < 2; ++i)
-    {
-       EEARH = uint8_t(adress_beg+i >> 8);
-       EEARL = uint8_t(adress_beg+i);
-       EECR |= (1<< EERE);
-       rec->key[i] = EEDR; 
-    }
+       rec->key[i] = read_byte(adress_beg+i); 
     // time...
-    EEARH = uint8_t(adress_beg+2 >> 8);
-    EEARL = uint8_t(adress_beg+2);
-    EECR |= (1<< EERE);  
-    rec->time = (EEDR << 8);
-    EEARH = uint8_t(adress_beg+3 >> 8);
-    EEARL = uint8_t(adress_beg+3);
-    EECR |= (1<< EERE);
-    rec->time |= (EEDR & 0xFF);
+    rec->time = (read_byte(adress_beg+2) << 8);
+    rec->time |= (read_byte(adress_beg+3) & 0xFF);
     //filled
   /*  EEARH = uint8_t(adress_beg+4 >> 8);
     EEARL = uint8_t(adress_beg+4);

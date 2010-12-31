@@ -241,7 +241,7 @@ bool SetMovement(uint8_t key[])
 
 void MovementCorrection()
 {
-    int speed_cor = moveflags == MOVE_FORWARD ? speed : -speed;
+    int8_t speed_cor = moveflags == MOVE_FORWARD ? speed : -speed;
     int r = re_cor.get();
     int l = le_cor.get();
     if(fabs(r - l) >= 50)
@@ -321,6 +321,14 @@ void run()
         if(key_itr >= 2)
         {
             key_itr = 0;
+            // FIXME: ignore two or more keys at once
+            if((state & STATE_RECORD) && char(lastRec.key[1]) == 'd' && char(key[1]) != 'u' && char(key[0]) != 'C')
+            {
+                while(key_itr < 2)
+                    key[++key_itr] = '0';
+                key_itr = 0;
+                continue;
+            }
             bool down_only = SetMovement(key);
             if(char(key[0]) == 'O' || char(key[0]) == 'P')
                 continue;
@@ -332,6 +340,7 @@ void run()
                     recordTime.clear();
                     recordTime.start();
                 }
+                
 
                 if(recordIter > 0)
                 {
@@ -357,7 +366,53 @@ void run()
                     rs232.send("Memory full\r\n");
                     continue;
                 }
-            };
+            }
+        }
+        // EEPROM Flash mode
+        else if(ch == 0x1C)
+        {
+            while(key_itr < 2)
+                key[++key_itr] = '0';
+            key_itr = 0;
+            lastAdress = 0;
+            Record rec;
+            rec.time = 0;
+            rec.key[0] = 0;
+            rec.key[1] = 0;
+            for(uint8_t i = 0; i < MEM_SIZE; ++i)
+            {
+                write_mem(&rec, lastAdress);
+                lastAdress += REC_SIZE;
+            }
+            lastAdress = 0;
+            rs232.sendCharacter(0x1D);
+            for(lastAdress = 0; true; )
+            {
+                if(!rs232.peek(ch))
+                    continue;
+                if(ch == 0x1E)
+                    break;
+                write_byte(lastAdress, uint8_t(ch));
+                ++lastAdress;
+                rs232.sendCharacter(0x1F);
+            }
+            lastAdress = 0;
+             
+        }
+        // EEPROM read mode
+        else if(ch == 0x16)
+        {
+            while(key_itr < 2)
+                key[++key_itr] = '0';
+            key_itr = 0;
+            rs232.sendCharacter(0x17);
+            for(lastAdress = 0; lastAdress < 512; ++lastAdress)
+            {
+                rs232.wait();
+                rs232.sendCharacter(read_byte(lastAdress));
+            }
+            rs232.sendCharacter(0x18);
+            lastAdress = 0;
         }
     }
 }
