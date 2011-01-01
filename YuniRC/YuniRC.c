@@ -60,7 +60,7 @@ bool SetMovement(uint8_t key[])
                     rs232.send("Erasing EEPROM...");
                     state |= STATE_ERASING;
                     Record rec;
-                    rec.time = 0;
+                    rec.setBigNum(0);
                     rec.key[0] = 0;
                     rec.key[1] = 0;
                     for(uint8_t i = 0; i < MEM_SIZE; ++i)
@@ -74,7 +74,8 @@ bool SetMovement(uint8_t key[])
                 }
                 else
                 {
-                    lastRec.time = recordTime.getTime()/10000;
+                    lastRec.end_event = EVENT_TIME;
+                    lastRec.setBigNum(recordTime.getTime()/10000);
                     write_mem(&lastRec, lastAdress);                   
                     recordTime.stop();
                     recordTime.clear();
@@ -288,13 +289,25 @@ void run()
         // Move correction
         if((state & STATE_CORRECTION) && (moveflags == MOVE_FORWARD || moveflags == MOVE_BACKWARD))
             MovementCorrection();
+        
 
-        if((state & STATE_PLAY) && getTickCount() - nextPlayBase >= nextPlay)
+        if((state & STATE_PLAY) && ( lastAdress == 0 || 
+           (lastRec.end_event == EVENT_TIME && getTickCount() - nextPlayBase >= nextPlay) ||
+
+           (lastRec.end_event == EVENT_SENSOR_LEVEL_HIGHER && getSensorValue(lastRec.event_param[0]) >= lastRec.event_param[1]) ||
+
+           (lastRec.end_event == EVENT_SENSOR_LEVEL_LOWER && getSensorValue(lastRec.event_param[0]) <= lastRec.event_param[1]) ||
+
+           (lastRec.end_event == EVENT_RANGE_MIDDLE_HIGHER && getTickCount() - nextPlayBase >= nextPlay &&
+               (nextPlayBase = getTickCount()) && ReadRange(FINDER_MIDDLE) >= lastRec.getBigNum()) ||
+
+           (lastRec.end_event == EVENT_RANGE_MIDDLE_LOWER && getTickCount() - nextPlayBase >= nextPlay &&
+               (nextPlayBase = getTickCount()) && ReadRange(FINDER_MIDDLE) <= lastRec.getBigNum())
+           ))
         {
-            Record rec;
-            read_mem(&rec, lastAdress);
+            read_mem(&lastRec, lastAdress);
             lastAdress += REC_SIZE;
-            if((rec.key[0] == 0 && rec.key[1] == 0 && rec.time == 0) ||
+            if((lastRec.key[0] == 0 && lastRec.key[1] == 0 && lastRec.getBigNum() == 0) ||
                lastAdress > 512)
             {
                 state &= ~(STATE_PLAY);
@@ -305,9 +318,19 @@ void run()
                 moveflags = MOVE_NONE;
                 continue;
             }
-            SetMovement(rec.key);
-            nextPlayBase = getTickCount();
-            nextPlay = (uint32_t(rec.time)*10000) * JUNIOR_WAIT_MUL / JUNIOR_WAIT_DIV;
+            SetMovement(lastRec.key);
+            nextPlay = 0;
+            nextPlayBase = 0;
+            if(lastRec.end_event == EVENT_TIME)
+            {
+                nextPlayBase = getTickCount();
+                nextPlay = (uint32_t(lastRec.getBigNum())*10000) * JUNIOR_WAIT_MUL / JUNIOR_WAIT_DIV;
+            }
+            else if(lastRec.end_event == EVENT_RANGE_MIDDLE_HIGHER || lastRec.end_event == EVENT_RANGE_MIDDLE_LOWER)
+            {
+                nextPlayBase = getTickCount();
+                nextPlay = (300000) * JUNIOR_WAIT_MUL / JUNIOR_WAIT_DIV;
+            }
             ++recordIter;
         }
         //Read command
@@ -344,7 +367,8 @@ void run()
 
                 if(recordIter > 0)
                 {
-                    lastRec.time = recordTime.getTime()/10000;
+                    lastRec.end_event = EVENT_TIME;
+                    lastRec.setBigNum(recordTime.getTime()/10000);
                     write_mem(&lastRec, lastAdress);                   
                     lastAdress+=REC_SIZE;
                 }
@@ -376,21 +400,22 @@ void run()
             key_itr = 0;
             lastAdress = 0;
             Record rec;
-            rec.time = 0;
+            rec.setBigNum(0);
             rec.key[0] = 0;
             rec.key[1] = 0;
+            rec.end_event = 0;
             for(uint8_t i = 0; i < MEM_SIZE; ++i)
             {
                 write_mem(&rec, lastAdress);
                 lastAdress += REC_SIZE;
             }
-            lastAdress = 0;
             rs232.sendCharacter(0x1D);
+            bool stop = false;
             for(lastAdress = 0; true; )
             {
                 if(!rs232.peek(ch))
                     continue;
-                if(ch == 0x1E)
+                if(ch == 0x1E && lastAdress%5 == 0)
                     break;
                 write_byte(lastAdress, uint8_t(ch));
                 ++lastAdress;

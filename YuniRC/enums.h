@@ -15,14 +15,30 @@ enum rangeFinderPos
     FINDER_RIGHT      = 0xE4
 };
 #define RANGE_CENTIMETRES 0x51
-#define MEM_SIZE 128
-#define REC_SIZE 4 // sizeof(Record)
+#define MEM_SIZE 102
+#define REC_SIZE 5 // sizeof(Record)
+
+enum recordStopEvents
+{
+    EVENT_TIME               = 0x01,
+    EVENT_SENSOR_LEVEL_HIGHER= 0x02,
+    EVENT_SENSOR_LEVEL_LOWER = 0x04,
+    EVENT_RANGE_MIDDLE_HIGHER= 0x08,
+    EVENT_RANGE_MIDDLE_LOWER = 0x10,
+};
 
 struct Record
 {
     uint8_t key[2];
-    uint16_t time;
-    //bool filled;
+    uint8_t end_event;
+    uint8_t event_param[2];
+
+    uint16_t getBigNum() const { return ((event_param[0] << 8) | (event_param[1] & 0xFF)); }
+    void setBigNum(uint16_t num)
+    {
+        event_param[0] = uint8_t(num >> 8);
+        event_param[1] = uint8_t(num & 0xFF);
+    }
 };
 
 /*enum rangeMethods 
