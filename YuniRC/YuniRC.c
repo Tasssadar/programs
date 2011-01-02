@@ -291,19 +291,7 @@ void run()
             MovementCorrection();
         
 
-        if((state & STATE_PLAY) && ( lastAdress == 0 || 
-           (lastRec.end_event == EVENT_TIME && getTickCount() - nextPlayBase >= nextPlay) ||
-
-           (lastRec.end_event == EVENT_SENSOR_LEVEL_HIGHER && getSensorValue(lastRec.event_param[0]) >= lastRec.event_param[1]) ||
-
-           (lastRec.end_event == EVENT_SENSOR_LEVEL_LOWER && getSensorValue(lastRec.event_param[0]) <= lastRec.event_param[1]) ||
-
-           (lastRec.end_event == EVENT_RANGE_MIDDLE_HIGHER && getTickCount() - nextPlayBase >= nextPlay &&
-               (nextPlayBase = getTickCount()) && ReadRange(FINDER_MIDDLE) >= lastRec.getBigNum()) ||
-
-           (lastRec.end_event == EVENT_RANGE_MIDDLE_LOWER && getTickCount() - nextPlayBase >= nextPlay &&
-               (nextPlayBase = getTickCount()) && ReadRange(FINDER_MIDDLE) <= lastRec.getBigNum())
-           ))
+        if((state & STATE_PLAY) && (lastAdress == 0 || EventHappened(&lastRec, &nextPlayBase, &nextPlay)))
         {
             read_mem(&lastRec, lastAdress);
             lastAdress += REC_SIZE;
@@ -326,11 +314,12 @@ void run()
                 nextPlayBase = getTickCount();
                 nextPlay = (uint32_t(lastRec.getBigNum())*10000) * JUNIOR_WAIT_MUL / JUNIOR_WAIT_DIV;
             }
-            else if(lastRec.end_event == EVENT_RANGE_MIDDLE_HIGHER || lastRec.end_event == EVENT_RANGE_MIDDLE_LOWER)
+            //Uncomment to set messure delay
+            /*else if(lastRec.end_event == EVENT_RANGE_MIDDLE_HIGHER || lastRec.end_event == EVENT_RANGE_MIDDLE_LOWER)
             {
                 nextPlayBase = getTickCount();
-                nextPlay = (300000) * JUNIOR_WAIT_MUL / JUNIOR_WAIT_DIV;
-            }
+                nextPlay = (50000) * JUNIOR_WAIT_MUL / JUNIOR_WAIT_DIV;
+            }*/
             ++recordIter;
         }
         //Read command
@@ -410,7 +399,6 @@ void run()
                 lastAdress += REC_SIZE;
             }
             rs232.sendCharacter(0x1D);
-            bool stop = false;
             for(lastAdress = 0; true; )
             {
                 if(!rs232.peek(ch))

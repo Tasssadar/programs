@@ -43,7 +43,7 @@ void read_mem(Record *rec, uint16_t adress_beg)
     
 }
 
-uint16_t ReadRange(uint8_t adress, uint8_t method = RANGE_CENTIMETRES)
+inline uint16_t ReadRange(uint8_t adress, uint8_t method = RANGE_CENTIMETRES)
 {
     uint16_t range = 0;
     uint8_t data [2] = { 0, method };
@@ -63,6 +63,30 @@ uint16_t ReadRange(uint8_t adress, uint8_t method = RANGE_CENTIMETRES)
     i2c.read(adress, 1);
     i2c.get_result();
     range |= TWDR;
+    clean_i2c();
+    i2c.clear();
     return range;
 }
 
+inline bool EventHappened(Record *rec, uint32_t *nextPlayBase, uint32_t *nextPlay) 
+{
+    switch(rec->end_event)
+    {
+        case EVENT_TIME:
+            return (getTickCount() - *nextPlayBase >= *nextPlay);
+        case EVENT_SENSOR_LEVEL_HIGHER:
+            return (getSensorValue(rec->event_param[0]) >= rec->event_param[1]);
+        case EVENT_SENSOR_LEVEL_LOWER:
+            return (getSensorValue(rec->event_param[0]) <= rec->event_param[1]);
+        case EVENT_RANGE_MIDDLE_HIGHER:
+        case EVENT_RANGE_MIDDLE_LOWER:
+            // Uncomment to set messure delay
+            //if(getTickCount() - *nextPlayBase < *nextPlay)
+            //    return false;
+            //*nextPlayBase = getTickCount();
+            return (rec->end_event == EVENT_RANGE_MIDDLE_HIGHER) ?
+                (ReadRange(FINDER_MIDDLE) >= rec->getBigNum()) :
+                (ReadRange(FINDER_MIDDLE) <= rec->getBigNum());      
+    }
+    return false;
+}

@@ -1343,6 +1343,18 @@ public:
         TWAR = address & 0xfe;
     }
 
+    void clear()
+    {
+        while(!m_tx_queue.empty())
+            m_tx_queue.pop();
+        while(! m_rx_queue.empty())
+              m_rx_queue.pop();
+        while(!m_results.empty())
+            m_results.pop();
+        while(!m_master_actions.empty())
+            m_master_actions.pop();
+    }
+
 private:
     uint8_t construct_twcr(bool active = false)
     {
