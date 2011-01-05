@@ -7,6 +7,7 @@ left_encoder le;
 right_encoder re;
 left_encoder le_cor;
 right_encoder re_cor;
+right_encoder encoder_play;
 uint8_t state;
 uint16_t lastAdress;
 uint8_t recordIter;
@@ -210,6 +211,7 @@ bool SetMovement(uint8_t key[])
             le_cor.clear();
             re_cor.clear();
             setMotorPower(speed, speed);
+            state &= ~(STATE_CORRECTION2);
         }
     }
     else if(moveflags & MOVE_BACKWARD)
@@ -220,6 +222,7 @@ bool SetMovement(uint8_t key[])
             setMotorPower(-speed, -(speed-TURN_VALUE));
         else
         {
+            state &= ~(STATE_CORRECTION2);
             le_cor.start();
             re_cor.start();
             le_cor.clear();
@@ -236,6 +239,7 @@ bool SetMovement(uint8_t key[])
         setMotorPower(0, 0);
         le_cor.stop();
         re_cor.stop();
+        state &= ~(STATE_CORRECTION2);
     }
     return down_only;
 }
@@ -243,16 +247,25 @@ bool SetMovement(uint8_t key[])
 void MovementCorrection()
 {
     int8_t speed_cor = moveflags == MOVE_FORWARD ? speed : -speed;
+    int8_t speed_cor_low = moveflags == MOVE_FORWARD ? speed-1 : (-speed)+1;
     int r = re_cor.get();
     int l = le_cor.get();
-    if(fabs(r - l) >= 50)
+    if(!(state & STATE_CORRECTION2) && fabs(r - l) >= 10)
     {
         if((l > r && moveflags == MOVE_FORWARD) || (l < r && moveflags == MOVE_BACKWARD))
-            setMotorPower(0, speed_cor);
-        else setMotorPower(speed_cor, 0);
+            setMotorPower(speed_cor_low, speed_cor);
+        else setMotorPower(speed_cor, speed_cor_low);
+        state |= STATE_CORRECTION2;
     }
-    else if((fabs(r - l) >= 30 && moveflags == MOVE_FORWARD) || fabs(r - l) >= 45)
+    else if((state & STATE_CORRECTION2) && fabs(r - l) >= 10)
+    {
         setMotorPower(speed_cor, speed_cor);
+        state &= ~(STATE_CORRECTION2);
+    }
+    else return;
+    re_cor.clear();
+    le_cor.clear();
+    
 }
 
 void run()
@@ -272,7 +285,7 @@ void run()
     uint32_t nextPlay = 0;
     uint32_t nextPlayBase = 0;
     state = 0;
-
+    encoder_play.stop();
     /*rs232.send("YuniRC program has started!\r\n"
         "Controls: W,A,S,D - movement, Space - read sensor values,");
     rs232.wait();
@@ -320,6 +333,11 @@ void run()
                 nextPlayBase = getTickCount();
                 nextPlay = (50000) * JUNIOR_WAIT_MUL / JUNIOR_WAIT_DIV;
             }*/
+            else if(lastRec.end_event == EVENT_DISTANCE)
+            {
+                encoder_play.clear();
+                encoder_play.start();
+            }
             ++recordIter;
         }
         //Read command

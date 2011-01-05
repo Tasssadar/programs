@@ -1,4 +1,11 @@
 
+inline int16_t fabs(int16_t num)
+{
+    if(num < 0)
+        return -num;
+    return num;
+}
+
 inline void write_byte(uint16_t adress, uint8_t byte)
 {
     while(EECR & (1<< EEPE)){}
@@ -86,7 +93,14 @@ inline bool EventHappened(Record *rec, uint32_t *nextPlayBase, uint32_t *nextPla
             //*nextPlayBase = getTickCount();
             return (rec->end_event == EVENT_RANGE_MIDDLE_HIGHER) ?
                 (ReadRange(FINDER_MIDDLE) >= rec->getBigNum()) :
-                (ReadRange(FINDER_MIDDLE) <= rec->getBigNum());      
+                (ReadRange(FINDER_MIDDLE) <= rec->getBigNum());
+        case EVENT_DISTANCE:
+            if(fabs(encoder_play.get()) >= (rec->getBigNum()*CM))
+            {
+                encoder_play.stop();
+                return true;
+            }
+            break;    
     }
     return false;
 }

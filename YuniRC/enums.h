@@ -15,8 +15,10 @@ enum rangeFinderPos
     FINDER_RIGHT      = 0xE4
 };
 #define RANGE_CENTIMETRES 0x51
-#define MEM_SIZE 102
+#define MEM_SIZE 102 // 512/5
 #define REC_SIZE 5 // sizeof(Record)
+
+#define CM      35 // on encoders
 
 enum recordStopEvents
 {
@@ -25,6 +27,7 @@ enum recordStopEvents
     EVENT_SENSOR_LEVEL_LOWER = 0x04,
     EVENT_RANGE_MIDDLE_HIGHER= 0x08,
     EVENT_RANGE_MIDDLE_LOWER = 0x10,
+    EVENT_DISTANCE           = 0x20,
 };
 
 struct Record
@@ -58,4 +61,5 @@ enum states
     STATE_RECORD      = 0x02,
     STATE_PLAY        = 0x04,
     STATE_ERASING     = 0x08,
+    STATE_CORRECTION2 = 0x10,
 };

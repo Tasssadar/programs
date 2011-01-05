@@ -107,13 +107,6 @@ void store_eeprom(uint8_t address, T value)
     }
 }
 
-inline int16_t fabs(int16_t num)
-{
-    if(num < 0)
-        return -num;
-    return num;
-}
-
 #define JUNIOR_SERVO_TOP  0xc000
 #define JUNIOR_SERVO_ZERO 3750
 #define JUNIOR_SERVO_MUL 10
