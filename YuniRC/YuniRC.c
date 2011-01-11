@@ -7,19 +7,21 @@ left_encoder le;
 right_encoder re;
 left_encoder le_cor;
 right_encoder re_cor;
-right_encoder encoder_play;
+left_encoder encoder_play_l;
+right_encoder encoder_play_r;
 uint8_t state;
 uint16_t lastAdress;
 uint8_t recordIter;
 stopwatch recordTime;
 Record lastRec;
+uint32_t startTime;
 
 #include "func.h"
 
 bool SetMovement(uint8_t key[])
 {
     // Set Movement Flags
-    bool down = key[1] == uint8_t('d');
+    bool down = (key[1] == uint8_t('d'));
     bool down_only = false;
     // only down keys
     if(down)
@@ -57,18 +59,9 @@ bool SetMovement(uint8_t key[])
                 {
                     state |= STATE_RECORD;
                     recordIter = 0;
-                    lastAdress = 0;
                     rs232.send("Erasing EEPROM...");
                     state |= STATE_ERASING;
-                    Record rec;
-                    rec.setBigNum(0);
-                    rec.key[0] = 0;
-                    rec.key[1] = 0;
-                    for(uint8_t i = 0; i < MEM_SIZE; ++i)
-                    {
-                        write_mem(&rec, lastAdress);
-                        lastAdress += REC_SIZE;
-                    }
+                    erase_eeprom();
                     state &= ~(STATE_ERASING);
                     rs232.send("done\r\n");
                     lastAdress = 0;
@@ -168,11 +161,11 @@ bool SetMovement(uint8_t key[])
     // Sensors
     if(char(key[0]) == ' ' && down) // Space
     {
-        rs232.wait();
-        rs232.send("\r\nSensors: \r\n");
-        rs232.sendNumber(getSensorValue(0));
-        rs232.send("  ");
-        rs232.sendNumber(getSensorValue(4));
+		rs232.wait();
+		rs232.send("\r\nSensors: ");
+		rs232.dumpNumber(getSensorValue(6));
+        rs232.sendNumber(getSensorValue(7)); // proud
+        /*rs232.send("\r\nSensors: \r\n");
         rs232.send("  ");
         rs232.sendNumber(getSensorValue(5));
         rs232.send("  ");
@@ -182,7 +175,7 @@ bool SetMovement(uint8_t key[])
         rs232.sendNumber(getSensorValue(2));
         rs232.send("                    ");
         rs232.sendNumber(getSensorValue(3));
-        rs232.wait();
+        rs232.wait(); */
         rs232.send("\r\nEncoders: \r\n L: ");
         rs232.sendNumber(le.get());
         rs232.send(" R: "); 
@@ -213,6 +206,7 @@ bool SetMovement(uint8_t key[])
             setMotorPower(speed, speed);
             state &= ~(STATE_CORRECTION2);
         }
+		startTime = getTickCount();
     }
     else if(moveflags & MOVE_BACKWARD)
     {
@@ -229,13 +223,21 @@ bool SetMovement(uint8_t key[])
             re_cor.clear();
             setMotorPower(-speed, -speed);
         }
+		startTime = getTickCount();
     }
     else if(moveflags & MOVE_LEFT)
+	{
         setMotorPower(-speed, speed);
+		startTime = getTickCount();
+	}
     else if(moveflags & MOVE_RIGHT)
+	{
         setMotorPower(speed, -speed);
+		startTime = getTickCount();
+	}
     else
     {
+		startTime = getTickCount();
         setMotorPower(0, 0);
         le_cor.stop();
         re_cor.stop();
@@ -277,7 +279,7 @@ void run()
     key_itr = 0;
     moveflags = 0;
     recordIter = 0;
-    speed = 100;
+    speed = 127;
     le.clear();
     re.clear();
     recordTime.stop();
@@ -285,7 +287,9 @@ void run()
     uint32_t nextPlay = 0;
     uint32_t nextPlayBase = 0;
     state = 0;
-    encoder_play.stop();
+    encoder_play_l.stop();
+	encoder_play_r.stop();
+	startTime = 0;
     /*rs232.send("YuniRC program has started!\r\n"
         "Controls: W,A,S,D - movement, Space - read sensor values,");
     rs232.wait();
@@ -299,13 +303,27 @@ void run()
         if(state & STATE_ERASING)
             continue;
 
+		/*if(getTickCount() - startTime >= 1250000)
+		{
+			int16_t sensorVal = getSensorValue(7);
+			if(!(moveflags & MOVE_STOPPED) &&  sensorVal > 150)
+				moveflags |= MOVE_STOPPED;
+			else if(!(moveflags & MOVE_STOPPED_ONE) && sensorVal > 100)
+				moveflags |= MOVE_STOPPED_ONE;
+			if((moveflags & MOVE_STOPPED) && sensorVal < 150)
+				moveflags &= ~(MOVE_STOPPED);
+			if((moveflags & MOVE_STOPPED_ONE) && sensorVal < 100)
+				moveflags &= ~(MOVE_STOPPED_ONE);
+		} */
+
         // Move correction
         if((state & STATE_CORRECTION) && (moveflags == MOVE_FORWARD || moveflags == MOVE_BACKWARD))
             MovementCorrection();
-        
 
         if((state & STATE_PLAY) && (lastAdress == 0 || EventHappened(&lastRec, &nextPlayBase, &nextPlay)))
         {
+			encoder_play_l.stop();
+		    encoder_play_r.stop();
             read_mem(&lastRec, lastAdress);
             lastAdress += REC_SIZE;
             if((lastRec.key[0] == 0 && lastRec.key[1] == 0 && lastRec.getBigNum() == 0) ||
@@ -333,10 +351,12 @@ void run()
                 nextPlayBase = getTickCount();
                 nextPlay = (50000) * JUNIOR_WAIT_MUL / JUNIOR_WAIT_DIV;
             }*/
-            else if(lastRec.end_event == EVENT_DISTANCE)
+            else if(lastRec.end_event == EVENT_DISTANCE || lastRec.end_event == EVENT_DISTANCE_LEFT || lastRec.end_event == EVENT_DISTANCE_RIGHT)
             {
-                encoder_play.clear();
-                encoder_play.start();
+                encoder_play_r.clear();
+				encoder_play_l.clear();
+                encoder_play_l.start();
+                encoder_play_r.start();
             }
             ++recordIter;
         }
@@ -371,7 +391,6 @@ void run()
                     recordTime.start();
                 }
                 
-
                 if(recordIter > 0)
                 {
                     lastRec.end_event = EVENT_TIME;
@@ -405,17 +424,7 @@ void run()
             while(key_itr < 2)
                 key[++key_itr] = '0';
             key_itr = 0;
-            lastAdress = 0;
-            Record rec;
-            rec.setBigNum(0);
-            rec.key[0] = 0;
-            rec.key[1] = 0;
-            rec.end_event = 0;
-            for(uint8_t i = 0; i < MEM_SIZE; ++i)
-            {
-                write_mem(&rec, lastAdress);
-                lastAdress += REC_SIZE;
-            }
+			erase_eeprom();
             rs232.sendCharacter(0x1D);
             for(lastAdress = 0; true; )
             {

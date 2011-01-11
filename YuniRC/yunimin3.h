@@ -62,7 +62,7 @@ inline void nop()
 #define JUNIOR_CONCAT(x, y) JUNIOR_CONCAT2(x, y)
 
 #endif
-
+/*
 template <typename T>
 T load_eeprom(uint8_t address)
 {
@@ -106,7 +106,7 @@ void store_eeprom(uint8_t address, T value)
         ++EEARL;
     }
 }
-
+ */
 #define JUNIOR_SERVO_TOP  0xc000
 #define JUNIOR_SERVO_ZERO 3750
 #define JUNIOR_SERVO_MUL 10
@@ -537,7 +537,7 @@ inline void init_indirect_sensors()
     ADCSRA = (1<<ADEN)|(1<<ADSC)|(1<<ADIF)|(1<<ADIE)|(1<<ADPS2)|(1<<ADPS1)|(1<<ADPS0);
     
     DDRC |= (1<<0)|(1<<1)|(1<<2);
-    DDRC &= ~(1<<3);
+    DDRC &= ~(1<<3); 
     
     g_sensors.value[0] = 1024;
     g_sensors.value[1] = 1024;
@@ -572,7 +572,8 @@ inline int16_t getSensorValue(uint8_t index)
     sei();
     nop();
 
-    return res;
+    return res; 
+	return 0;
 }
 
 inline void calibrate_sensors()
@@ -855,12 +856,12 @@ public:
         UCSR0B |= (1<<UDRIE0);
     }
 
-    void sendHexByte(uint8_t byte)
+/*    void sendHexByte(uint8_t byte)
     {
         static const char hexdigits[] = "0123456789ABCDEF";
         this->sendCharacter(hexdigits[byte >> 4]);
         this->sendCharacter(hexdigits[byte & 0x0f]);
-    }
+    } */
 
     template <typename T>
     void sendNumberHex(T n, uint8_t width = 0)

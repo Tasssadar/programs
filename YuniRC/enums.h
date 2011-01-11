@@ -7,27 +7,34 @@ enum moveFlags
     MOVE_BACKWARD     = 0x02,
     MOVE_LEFT         = 0x04,
     MOVE_RIGHT        = 0x08,
+	MOVE_STOPPED      = 0x10,
+	MOVE_STOPPED_ONE  = 0x20
 };
+
 enum rangeFinderPos
 {
     FINDER_MIDDLE     = 0xE0,
     FINDER_LEFT       = 0xE2,
     FINDER_RIGHT      = 0xE4
 };
+
 #define RANGE_CENTIMETRES 0x51
 #define MEM_SIZE 102 // 512/5
 #define REC_SIZE 5 // sizeof(Record)
 
 #define CM      35 // on encoders
+#define MM      5 // on encoders
 
 enum recordStopEvents
 {
-    EVENT_TIME               = 0x01,
-    EVENT_SENSOR_LEVEL_HIGHER= 0x02,
-    EVENT_SENSOR_LEVEL_LOWER = 0x04,
-    EVENT_RANGE_MIDDLE_HIGHER= 0x08,
-    EVENT_RANGE_MIDDLE_LOWER = 0x10,
-    EVENT_DISTANCE           = 0x20,
+    EVENT_TIME               = 1,
+    EVENT_SENSOR_LEVEL_HIGHER= 2,
+    EVENT_SENSOR_LEVEL_LOWER = 3,
+    EVENT_RANGE_HIGHER       = 4,
+    EVENT_RANGE_LOWER        = 5,
+    EVENT_DISTANCE           = 6,
+	EVENT_DISTANCE_LEFT      = 7,
+	EVENT_DISTANCE_RIGHT     = 8,
 };
 
 struct Record
