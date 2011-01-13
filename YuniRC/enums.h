@@ -7,8 +7,6 @@ enum moveFlags
     MOVE_BACKWARD     = 0x02,
     MOVE_LEFT         = 0x04,
     MOVE_RIGHT        = 0x08,
-	MOVE_STOPPED      = 0x10,
-	MOVE_STOPPED_ONE  = 0x20
 };
 
 enum rangeFinderPos
@@ -33,8 +31,8 @@ enum recordStopEvents
     EVENT_RANGE_HIGHER       = 4,
     EVENT_RANGE_LOWER        = 5,
     EVENT_DISTANCE           = 6,
-	EVENT_DISTANCE_LEFT      = 7,
-	EVENT_DISTANCE_RIGHT     = 8,
+    EVENT_DISTANCE_LEFT      = 7,
+    EVENT_DISTANCE_RIGHT     = 8,
 };
 
 struct Record

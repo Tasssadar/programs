@@ -88,15 +88,15 @@ inline bool EventHappened(Record *rec, uint32_t *nextPlayBase, uint32_t *nextPla
         case EVENT_TIME:
             return (getTickCount() - *nextPlayBase >= *nextPlay);
         case EVENT_SENSOR_LEVEL_HIGHER:
-			if(rec->event_param[0] == 7 && getTickCount() - startTime < 1250000)
-				return false;
+            if((rec->event_param[0] == 7 || rec->event_param[0] == 6) && getTickCount() - startTime < 1250000)
+                return false;
             return (getSensorValue(rec->event_param[0]) >= rec->event_param[1]);
         case EVENT_SENSOR_LEVEL_LOWER:
-			if(rec->event_param[0] == 7 && getTickCount() - startTime < 1250000)
-				return false;
+            if((rec->event_param[0] == 7 || rec->event_param[0] == 6) && getTickCount() - startTime < 1250000)
+                return false;
             return (getSensorValue(rec->event_param[0]) <= rec->event_param[1]);
-		case EVENT_RANGE_HIGHER:
-		case EVENT_RANGE_LOWER:
+        case EVENT_RANGE_HIGHER:
+        case EVENT_RANGE_LOWER:
             // Uncomment to set messure delay
             //if(getTickCount() - *nextPlayBase < *nextPlay)
             //    return false;
@@ -105,17 +105,17 @@ inline bool EventHappened(Record *rec, uint32_t *nextPlayBase, uint32_t *nextPla
                 (ReadRange(rec->event_param[0]) >= rec->event_param[1]) :
                 (ReadRange(rec->event_param[0]) <= rec->event_param[1]);
         case EVENT_DISTANCE:
-            if(fabs((encoder_play_r.get() + encoder_play_l.get())/2) >= (rec->getBigNum()*MM))
+            if((fabs(encoder_play_r.get()) + fabs(encoder_play_l.get())) / 2 >= (rec->getBigNum()*MM))
                 return true;
             break;
-		case EVENT_DISTANCE_LEFT:
-			if(fabs(encoder_play_l.get()) >= (rec->getBigNum()*MM))
+        case EVENT_DISTANCE_LEFT:
+            if(fabs(encoder_play_l.get()) >= (rec->getBigNum()*MM))
                 return true;
-			break;
-		case EVENT_DISTANCE_RIGHT:
-			if(fabs(encoder_play_r.get()) >= (rec->getBigNum()*MM))
+            break;
+        case EVENT_DISTANCE_RIGHT:
+            if(fabs(encoder_play_r.get()) >= (rec->getBigNum()*MM))
                 return true;
-			break;
+            break;
     }
     return false;
 }

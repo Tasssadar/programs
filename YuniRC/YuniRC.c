@@ -303,27 +303,14 @@ void run()
         if(state & STATE_ERASING)
             continue;
 
-		/*if(getTickCount() - startTime >= 1250000)
-		{
-			int16_t sensorVal = getSensorValue(7);
-			if(!(moveflags & MOVE_STOPPED) &&  sensorVal > 150)
-				moveflags |= MOVE_STOPPED;
-			else if(!(moveflags & MOVE_STOPPED_ONE) && sensorVal > 100)
-				moveflags |= MOVE_STOPPED_ONE;
-			if((moveflags & MOVE_STOPPED) && sensorVal < 150)
-				moveflags &= ~(MOVE_STOPPED);
-			if((moveflags & MOVE_STOPPED_ONE) && sensorVal < 100)
-				moveflags &= ~(MOVE_STOPPED_ONE);
-		} */
-
         // Move correction
         if((state & STATE_CORRECTION) && (moveflags == MOVE_FORWARD || moveflags == MOVE_BACKWARD))
             MovementCorrection();
 
         if((state & STATE_PLAY) && (lastAdress == 0 || EventHappened(&lastRec, &nextPlayBase, &nextPlay)))
         {
-			encoder_play_l.stop();
-		    encoder_play_r.stop();
+            encoder_play_l.stop();
+            encoder_play_r.stop();
             read_mem(&lastRec, lastAdress);
             lastAdress += REC_SIZE;
             if((lastRec.key[0] == 0 && lastRec.key[1] == 0 && lastRec.getBigNum() == 0) ||
@@ -354,7 +341,7 @@ void run()
             else if(lastRec.end_event == EVENT_DISTANCE || lastRec.end_event == EVENT_DISTANCE_LEFT || lastRec.end_event == EVENT_DISTANCE_RIGHT)
             {
                 encoder_play_r.clear();
-				encoder_play_l.clear();
+                encoder_play_l.clear();
                 encoder_play_l.start();
                 encoder_play_r.start();
             }
