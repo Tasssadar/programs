@@ -10,7 +10,6 @@ right_encoder encoder_play_r;
 uint8_t state;
 uint16_t lastAdress;
 uint8_t recordIter;
-stopwatch recordTime;
 Record lastRec;
 uint32_t startTime;
 
@@ -82,8 +81,6 @@ bool SetMovement(uint8_t key[])
 
                 if(!(state & STATE_PLAY))
                 {  
-                    recordTime.stop();
-                    recordTime.clear();
                     rs232.send("Playing..\r\n");   
                     recordIter = 0; 
                     lastAdress = 0;              
@@ -96,25 +93,6 @@ bool SetMovement(uint8_t key[])
                     state &= ~(STATE_PLAY);
                 }
                 break;
-         /*   case 'O':
-                if(state & STATE_RECORD)
-                   break;
-                rs232.send("Playback ");
-                if(state & STATE_PLAY)
-                {
-                    rs232.send("unpaused\r\n");
-                    state &= ~(STATE_PLAY);
-                }
-                else
-                {
-                    setMotorPower(0, 0);
-                    le_cor.stop();
-                    re_cor.stop();
-                    moveflags = MOVE_NONE;
-                    rs232.send("paused\r\n");
-                    state |= STATE_PLAY;
-                }
-                break; */
        }
     }
     // Movement
@@ -152,60 +130,7 @@ bool SetMovement(uint8_t key[])
             down_only = true;
             break;
     }
-   
-    //Set motors
-    if(moveflags & MOVE_FORWARD)
-    {
-        if(moveflags & MOVE_LEFT)
-            setMotorPower(speed-TURN_VALUE, speed);
-        else if(moveflags & MOVE_RIGHT)
-            setMotorPower(speed, speed-TURN_VALUE);
-        else
-        {
-            le_cor.start();
-            re_cor.start();
-            le_cor.clear();
-            re_cor.clear();
-            setMotorPower(speed, speed);
-            state &= ~(STATE_CORRECTION2);
-        }
-		startTime = getTickCount();
-    }
-    else if(moveflags & MOVE_BACKWARD)
-    {
-        if(moveflags & MOVE_LEFT)
-            setMotorPower(-(speed-TURN_VALUE), -speed);
-        else if(moveflags & MOVE_RIGHT)
-            setMotorPower(-speed, -(speed-TURN_VALUE));
-        else
-        {
-            state &= ~(STATE_CORRECTION2);
-            le_cor.start();
-            re_cor.start();
-            le_cor.clear();
-            re_cor.clear();
-            setMotorPower(-speed, -speed);
-        }
-		startTime = getTickCount();
-    }
-    else if(moveflags & MOVE_LEFT)
-	{
-        setMotorPower(-speed, speed);
-		startTime = getTickCount();
-	}
-    else if(moveflags & MOVE_RIGHT)
-	{
-        setMotorPower(speed, -speed);
-		startTime = getTickCount();
-	}
-    else
-    {
-		startTime = getTickCount();
-        setMotorPower(0, 0);
-        le_cor.stop();
-        re_cor.stop();
-        state &= ~(STATE_CORRECTION2);
-    }
+    SetMovementByFlags();
     return down_only;
 }
 
@@ -233,6 +158,35 @@ void MovementCorrection()
     
 }
 
+void checkCollision(uint32_t *nextPlayBase, uint32_t *nextPlay)
+{
+    if(moveflags != MOVE_FORWARD && moveflags != MOVE_BACKWARD)
+        return;
+
+    uint8_t adr = 0;
+    if(ReadRange(FINDER_LEFT) < COLISION_TRESHOLD)
+        adr = FINDER_LEFT;
+    else if(ReadRange(FINDER_RIGHT) < COLISION_TRESHOLD)
+        adr = FINDER_RIGHT;
+    else if(ReadRange(FINDER_MIDDLE) < COLISION_TRESHOLD)
+        adr = FINDER_MIDDLE;
+
+    if(!adr)
+        return;
+    
+    if(lastRec.end_event == EVENT_TIME)
+        *nextPlay -= (getTickCount() - *nextPlayBase);
+
+    setMotorPower(0, 0);
+    while(ReadRange(adr) < COLISION_TRESHOLD)
+        wait(500000);
+
+    SetMovementByFlags();
+
+    if(lastRec.end_event == EVENT_TIME)
+        *nextPlayBase = getTickCount();
+}
+
 void run()
 {
     uint8_t key[2];
@@ -243,14 +197,14 @@ void run()
     moveflags = 0;
     recordIter = 0;
     speed = 127;
-    recordTime.stop();
-    recordTime.clear();
     uint32_t nextPlay = 0;
     uint32_t nextPlayBase = 0;
-    state = STATE_CORRECTION;
+    state = (STATE_CORRECTION); // | STATE_PLAY);
     encoder_play_l.stop();
-	encoder_play_r.stop();
-	startTime = 0;
+    encoder_play_r.stop();
+    startTime = 0;
+    uint32_t rangeCheckBase = getTickCount();
+    const uint32_t rangeDelay = (500000) * JUNIOR_WAIT_MUL / JUNIOR_WAIT_DIV;
 
     char ch;
     while(true)
@@ -261,6 +215,13 @@ void run()
         // Move correction
         if((state & STATE_CORRECTION) && (moveflags == MOVE_FORWARD || moveflags == MOVE_BACKWARD))
             MovementCorrection();
+        
+        if((state & STATE_PLAY) && getTickCount() - rangeCheckBase >= rangeDelay)
+        {
+            rangeCheckBase = getTickCount();
+            checkCollision(&nextPlayBase, &nextPlay);
+        }
+        
 
         if((state & STATE_PLAY) && (lastAdress == 0 || EventHappened(&lastRec, &nextPlayBase, &nextPlay)))
         {
@@ -321,7 +282,7 @@ void run()
             while(key_itr < 2)
                 key[++key_itr] = '0';
             key_itr = 0;
-			erase_eeprom();
+            erase_eeprom();
             rs232.sendCharacter(0x1D);
             for(lastAdress = 0; true; )
             {

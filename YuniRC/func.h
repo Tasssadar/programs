@@ -119,3 +119,59 @@ inline bool EventHappened(Record *rec, uint32_t *nextPlayBase, uint32_t *nextPla
     }
     return false;
 }
+
+inline void SetMovementByFlags()
+{
+    if(moveflags & MOVE_FORWARD)
+    {
+        if(moveflags & MOVE_LEFT)
+            setMotorPower(speed-TURN_VALUE, speed);
+        else if(moveflags & MOVE_RIGHT)
+            setMotorPower(speed, speed-TURN_VALUE);
+        else
+        {
+            le_cor.start();
+            re_cor.start();
+            le_cor.clear();
+            re_cor.clear();
+            setMotorPower(speed, speed);
+            state &= ~(STATE_CORRECTION2);
+        }
+        startTime = getTickCount();
+    }
+    else if(moveflags & MOVE_BACKWARD)
+    {
+        if(moveflags & MOVE_LEFT)
+            setMotorPower(-(speed-TURN_VALUE), -speed);
+        else if(moveflags & MOVE_RIGHT)
+            setMotorPower(-speed, -(speed-TURN_VALUE));
+        else
+        {
+            state &= ~(STATE_CORRECTION2);
+            le_cor.start();
+            re_cor.start();
+            le_cor.clear();
+            re_cor.clear();
+            setMotorPower(-speed, -speed);
+        }
+        startTime = getTickCount();
+    }
+    else if(moveflags & MOVE_LEFT)
+    {
+        setMotorPower(-speed, speed);
+        startTime = getTickCount();
+    }
+    else if(moveflags & MOVE_RIGHT)
+    {
+        setMotorPower(speed, -speed);
+        startTime = getTickCount();
+    }
+    else
+    {
+        startTime = getTickCount();
+        setMotorPower(0, 0);
+        le_cor.stop();
+        re_cor.stop();
+        state &= ~(STATE_CORRECTION2);
+    }
+}

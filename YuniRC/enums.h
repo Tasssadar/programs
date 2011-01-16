@@ -19,6 +19,7 @@ enum rangeFinderPos
 #define RANGE_CENTIMETRES 0x51
 #define MEM_SIZE 102 // 512/5
 #define REC_SIZE 5 // sizeof(Record)
+#define COLISION_TRESHOLD 28
 
 #define CM      35 // on encoders
 #define MM      5 // on encoders
