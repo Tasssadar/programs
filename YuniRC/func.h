@@ -27,6 +27,7 @@ inline uint8_t read_byte(uint16_t adress)
 
 void write_mem(Record *rec, uint16_t adress_beg)
 {   
+    adress_beg += memBegin;
     // write keys
     for(uint8_t i = 0; i < 2; ++i)
        write_byte(adress_beg+i, rec->key[i]);
@@ -39,6 +40,7 @@ void write_mem(Record *rec, uint16_t adress_beg)
 
 void read_mem(Record *rec, uint16_t adress_beg)
 {
+    adress_beg += memBegin;
     while(EECR & (1<< EEPE)){} // wait for prev
     for(uint8_t i = 0; i < 2; ++i)
        rec->key[i] = read_byte(adress_beg+i); 
@@ -85,6 +87,8 @@ inline bool EventHappened(Record *rec, uint32_t *nextPlayBase, uint32_t *nextPla
 {
     switch(rec->end_event)
     {
+	    case EVENT_NONE:
+		    return true;
         case EVENT_TIME:
             return (getTickCount() - *nextPlayBase >= *nextPlay);
         case EVENT_SENSOR_LEVEL_HIGHER:

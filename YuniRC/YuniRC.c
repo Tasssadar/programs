@@ -12,6 +12,7 @@ uint16_t lastAdress;
 uint8_t recordIter;
 Record lastRec;
 uint32_t startTime;
+uint8_t memBegin;
 
 #include "func.h"
 
@@ -78,7 +79,7 @@ bool SetMovement(uint8_t key[])
                 re_cor.stop();
                 moveflags = MOVE_NONE;
                 setMotorPower(0, 0);
-
+                state &= ~(STATE_COLLISION);
                 if(!(state & STATE_PLAY))
                 {  
                     rs232.send("Playing..\r\n");   
@@ -93,6 +94,17 @@ bool SetMovement(uint8_t key[])
                     state &= ~(STATE_PLAY);
                 }
                 break;
+            case ' ':
+			    uint8_t adr = FINDER_FRONT1;
+				rs232.send("\r\n");
+			    for(uint8_t i = 0; i < 6; ++i, adr +=2)
+				{
+				    rs232.dumpNumber(adr);
+					rs232.sendNumber(ReadRange(adr));
+					rs232.send("\r\n");
+					
+				}
+			    break;
        }
     }
     // Movement
@@ -163,28 +175,31 @@ void checkCollision(uint32_t *nextPlayBase, uint32_t *nextPlay)
     if(moveflags != MOVE_FORWARD && moveflags != MOVE_BACKWARD)
         return;
 
-    uint8_t adr = 0;
-    if(ReadRange(FINDER_LEFT) < COLISION_TRESHOLD)
-        adr = FINDER_LEFT;
-    else if(ReadRange(FINDER_RIGHT) < COLISION_TRESHOLD)
-        adr = FINDER_RIGHT;
-    else if(ReadRange(FINDER_MIDDLE) < COLISION_TRESHOLD)
-        adr = FINDER_MIDDLE;
+    bool found = false;
+	uint8_t adr = (moveflags == MOVE_FORWARD) ? FINDER_FRONT1 : FINDER_BACK1;
 
-    if(!adr)
-        return;
-    
-    if(lastRec.end_event == EVENT_TIME)
-        *nextPlay -= (getTickCount() - *nextPlayBase);
+	for(uint8_t i = 0; i < 3 && !found; ++i, adr +=2)
+	{
+		if(ReadRange(adr) < COLISION_TRESHOLD)
+		    found = true;
+	}
 
-    setMotorPower(0, 0);
-    while(ReadRange(adr) < COLISION_TRESHOLD)
-        wait(500000);
+    if(found && !(state & STATE_COLLISION))
+	{
+		state |= STATE_COLLISION;
+		if(lastRec.end_event == EVENT_TIME)
+        	*nextPlay -= (getTickCount() - *nextPlayBase);
+        setMotorPower(0, 0);
+	}
+    else if(!found && (state & STATE_COLLISION))
+	{
+		state &= ~(STATE_COLLISION);
+		wait(800000);
+		SetMovementByFlags();
 
-    SetMovementByFlags();
-
-    if(lastRec.end_event == EVENT_TIME)
-        *nextPlayBase = getTickCount();
+        if(lastRec.end_event == EVENT_TIME)
+            *nextPlayBase = getTickCount();
+	}
 }
 
 void run()
@@ -199,12 +214,26 @@ void run()
     speed = 127;
     uint32_t nextPlay = 0;
     uint32_t nextPlayBase = 0;
-    state = (STATE_CORRECTION); // | STATE_PLAY);
+    state = (STATE_CORRECTION); // TODO: | STATE_PLAY);
     encoder_play_l.stop();
     encoder_play_r.stop();
     startTime = 0;
     uint32_t rangeCheckBase = getTickCount();
     const uint32_t rangeDelay = (500000) * JUNIOR_WAIT_MUL / JUNIOR_WAIT_DIV;
+
+	memBegin = MEM_PART1; // TODO: if something then part 2
+
+    // range finders adress changing
+	/*wait(5000000);
+	uint8_t data[4] = { 0xA0, 0xAA, 0xA5, 0xEA };
+	for(uint8_t i = 0; i < 4; ++i)
+	{ 
+        uint8_t dataS [2] = { 0, data[i] };
+	    i2c.write(0xE0, &dataS[0], 2);
+	    if(i2c.get_result().result != 2)
+	        rs232.dumpNumber(6);
+        rs232.dumpNumber(i);
+    }*/
 
     char ch;
     while(true)
@@ -223,14 +252,15 @@ void run()
         }
         
 
-        if((state & STATE_PLAY) && (lastAdress == 0 || EventHappened(&lastRec, &nextPlayBase, &nextPlay)))
+        if((state & STATE_PLAY) && !(state & STATE_COLLISION) &&
+		    (lastAdress == 0 || EventHappened(&lastRec, &nextPlayBase, &nextPlay)))
         {
             encoder_play_l.stop();
             encoder_play_r.stop();
             read_mem(&lastRec, lastAdress);
             lastAdress += REC_SIZE;
             if((lastRec.key[0] == 0 && lastRec.key[1] == 0 && lastRec.getBigNum() == 0) ||
-               lastAdress > 512)
+               lastAdress > 255)
             {
                 state &= ~(STATE_PLAY);
                 rs232.send("Playback finished\r\n");
@@ -288,8 +318,14 @@ void run()
             {
                 if(!rs232.peek(ch))
                     continue;
-                if(ch == 0x1E && lastAdress%5 == 0)
+                if(ch == 0x1E && (lastAdress%5 == 0 || lastAdress == 0))
                     break;
+                else if(ch == 0x16 && lastAdress%5 == 0)
+                {
+                    lastAdress = MEM_PART2;
+                    rs232.sendCharacter(0x1F);
+                    continue;
+                }
                 write_byte(lastAdress, uint8_t(ch));
                 ++lastAdress;
                 rs232.sendCharacter(0x1F);
