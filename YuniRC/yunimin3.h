@@ -856,12 +856,12 @@ public:
         UCSR0B |= (1<<UDRIE0);
     }
 
-/*    void sendHexByte(uint8_t byte)
+    void sendHexByte(uint8_t byte)
     {
         static const char hexdigits[] = "0123456789ABCDEF";
         this->sendCharacter(hexdigits[byte >> 4]);
         this->sendCharacter(hexdigits[byte & 0x0f]);
-    } */
+    } 
 
     template <typename T>
     void sendNumberHex(T n, uint8_t width = 0)

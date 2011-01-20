@@ -95,16 +95,20 @@ bool SetMovement(uint8_t key[])
                 }
                 break;
             case ' ':
+            {
 			    uint8_t adr = FINDER_FRONT1;
 				rs232.send("\r\n");
 			    for(uint8_t i = 0; i < 6; ++i, adr +=2)
 				{
-				    rs232.dumpNumber(adr);
+				    rs232.sendHexByte(adr);
+					rs232.send(" ");
 					rs232.sendNumber(ReadRange(adr));
 					rs232.send("\r\n");
 					
 				}
+			    rs232.dumpNumber(memBegin);
 			    break;
+			}
        }
     }
     // Movement
@@ -221,7 +225,7 @@ void run()
     uint32_t rangeCheckBase = getTickCount();
     const uint32_t rangeDelay = (500000) * JUNIOR_WAIT_MUL / JUNIOR_WAIT_DIV;
 
-	memBegin = MEM_PART1; // TODO: if something then part 2
+	memBegin = (getSensorValue(4) == 511) ? MEM_PART2 : MEM_PART1; // TODO: if something then part 2
 
     // range finders adress changing
 	/*wait(5000000);

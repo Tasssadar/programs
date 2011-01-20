@@ -92,12 +92,17 @@ inline bool EventHappened(Record *rec, uint32_t *nextPlayBase, uint32_t *nextPla
         case EVENT_TIME:
             return (getTickCount() - *nextPlayBase >= *nextPlay);
         case EVENT_SENSOR_LEVEL_HIGHER:
-            if((rec->event_param[0] == 7 || rec->event_param[0] == 6) && getTickCount() - startTime < 1250000)
-                return false;
+            //if((rec->event_param[0] == 7 || rec->event_param[0] == 6) && getTickCount() - startTime < 1500000)
+            //    return false;
+
+            if(rec->event_param[0] == 8 && g_emergency && getTickCount() - startTime >= (1000000 * JUNIOR_WAIT_MUL / JUNIOR_WAIT_DIV))
+			    return true;
             return (getSensorValue(rec->event_param[0]) >= rec->event_param[1]);
         case EVENT_SENSOR_LEVEL_LOWER:
-            if((rec->event_param[0] == 7 || rec->event_param[0] == 6) && getTickCount() - startTime < 1250000)
-                return false;
+            //if((rec->event_param[0] == 7 || rec->event_param[0] == 6) && getTickCount() - startTime < 1250000)
+            //    return false;
+            if(rec->event_param[0] == 8 && !g_emergency && getTickCount() - startTime >= (1000000 * JUNIOR_WAIT_MUL / JUNIOR_WAIT_DIV))
+			    return true;
             return (getSensorValue(rec->event_param[0]) <= rec->event_param[1]);
         case EVENT_RANGE_HIGHER:
         case EVENT_RANGE_LOWER:
