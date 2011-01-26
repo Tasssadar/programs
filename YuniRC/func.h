@@ -6,6 +6,7 @@ inline int16_t fabs(int16_t num)
     return num;
 }
 
+#ifndef EEPROM_PROTECTED
 inline void write_byte(uint16_t adress, uint8_t byte)
 {
     while(EECR & (1<< EEPE)){}
@@ -15,6 +16,7 @@ inline void write_byte(uint16_t adress, uint8_t byte)
     EECR |= (1<< EEMPE);
     EECR |= (1<< EEPE);
 }
+#endif
 
 inline uint8_t read_byte(uint16_t adress)
 {
@@ -25,53 +27,64 @@ inline uint8_t read_byte(uint16_t adress)
     return EEDR;
 }
 
+#ifndef EEPROM_PROTECTED
 void write_mem(Record *rec, uint16_t adress_beg)
 {   
     adress_beg += memBegin;
     // write keys
     for(uint8_t i = 0; i < 2; ++i)
+    {
        write_byte(adress_beg+i, rec->key[i]);
+       write_byte(adress_beg+3+i, rec->event_param[i]);
+    }
     // write stop event
     write_byte(adress_beg+2, rec->end_event);
     // write event params
-    write_byte(adress_beg+3, rec->event_param[0]);
-    write_byte(adress_beg+4, rec->event_param[1]);
+    //write_byte(adress_beg+3, rec->event_param[0]);
+    //write_byte(adress_beg+4, rec->event_param[1]);
 }
+#endif
 
 void read_mem(Record *rec, uint16_t adress_beg)
 {
     adress_beg += memBegin;
     while(EECR & (1<< EEPE)){} // wait for prev
     for(uint8_t i = 0; i < 2; ++i)
+    {
        rec->key[i] = read_byte(adress_beg+i); 
+       rec->event_param[i] = read_byte(adress_beg+3+i);
+    }
     // end event
     rec->end_event = read_byte(adress_beg+2);
     // event params
-    rec->event_param[0] = read_byte(adress_beg+3);
-    rec->event_param[1] = read_byte(adress_beg+4);
+   // rec->event_param[0] = read_byte(adress_beg+3);
+ //   rec->event_param[1] = read_byte(adress_beg+4);
     
 }
 
+#ifndef EEPROM_PROTECTED
 inline void erase_eeprom()
 {
-	for(uint16_t i = 0; i < 512; ++i)
-		write_byte(i, 0);
+    for(uint16_t i = 0; i < 512; ++i)
+        write_byte(i, 0);
 }
+#endif
 
-inline uint16_t ReadRange(uint8_t adress, uint8_t method = RANGE_CENTIMETRES)
+inline uint16_t ReadRange(uint8_t adress)//, uint8_t method = RANGE_CENTIMETRES)
 {
     uint16_t range = 0;
-    uint8_t data [2] = { 0, method };
+    uint8_t data [2] = { 0, 0x51 };
     i2c.write(adress, &data[0], 2);
     if(i2c.get_result().result != 2)
         return 0;
-    wait(10000); // maybe we can use smaller value
+    wait(70000); // maybe we can use smaller value
     i2c.write(adress, 0x02); // range High-byte
     if(i2c.get_result().result != 1)
         return 0;
     i2c.read(adress, 1);
     i2c.get_result();
     range = (8 << TWDR);
+    //range = TWDR << 8;
     i2c.write(adress, 0x03);
     if(i2c.get_result().result != 1)
         return 0;
@@ -83,12 +96,35 @@ inline uint16_t ReadRange(uint8_t adress, uint8_t method = RANGE_CENTIMETRES)
     return range;
 }
 
+#ifdef FINDERS_DEBUG
+inline uint16_t GetMinRange(uint8_t adr)
+{
+    uint16_t result = 0;
+    
+    i2c.write(adr, 0x04);
+    if(i2c.get_result().result != 1)
+        return 0;
+    i2c.read(adr, 1);
+    i2c.get_result();
+    result = (8 << TWDR);
+    i2c.write(adr, 0x05);
+    if(i2c.get_result().result != 1)
+        return 0;
+    i2c.read(adr, 1);
+    i2c.get_result();
+    result |= TWDR;
+    clean_i2c();
+    i2c.clear();
+    return result;
+}
+#endif
+
 inline bool EventHappened(Record *rec, uint32_t *nextPlayBase, uint32_t *nextPlay) 
 {
     switch(rec->end_event)
     {
-	    case EVENT_NONE:
-		    return true;
+        case EVENT_NONE:
+            return true;
         case EVENT_TIME:
             return (getTickCount() - *nextPlayBase >= *nextPlay);
         case EVENT_SENSOR_LEVEL_HIGHER:
@@ -96,13 +132,13 @@ inline bool EventHappened(Record *rec, uint32_t *nextPlayBase, uint32_t *nextPla
             //    return false;
 
             if(rec->event_param[0] == 8 && g_emergency && getTickCount() - startTime >= (1000000 * JUNIOR_WAIT_MUL / JUNIOR_WAIT_DIV))
-			    return true;
+                return true;
             return (getSensorValue(rec->event_param[0]) >= rec->event_param[1]);
         case EVENT_SENSOR_LEVEL_LOWER:
             //if((rec->event_param[0] == 7 || rec->event_param[0] == 6) && getTickCount() - startTime < 1250000)
             //    return false;
             if(rec->event_param[0] == 8 && !g_emergency && getTickCount() - startTime >= (1000000 * JUNIOR_WAIT_MUL / JUNIOR_WAIT_DIV))
-			    return true;
+                return true;
             return (getSensorValue(rec->event_param[0]) <= rec->event_param[1]);
         case EVENT_RANGE_HIGHER:
         case EVENT_RANGE_LOWER:

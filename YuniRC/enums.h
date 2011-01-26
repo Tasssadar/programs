@@ -15,17 +15,17 @@ enum rangeFinderPos
     FINDER_FRONT2     = 0xE2,
     FINDER_FRONT3     = 0xE4,
 
-	FINDER_BACK1      = 0xE6,
-	FINDER_BACK2      = 0xE8,
-	FINDER_BACK3      = 0xEA,
+    FINDER_BACK1      = 0xE6,
+    FINDER_BACK2      = 0xE8,
+    FINDER_BACK3      = 0xEA,
 };
 
-#define RANGE_CENTIMETRES 0x51
+//#define RANGE_CENTIMETRES 0x51
 #define MEM_SIZE 51 // 512/5
 #define MEM_PART1 0   
 #define MEM_PART2 255 // adress when part two begins
 #define REC_SIZE 5 // sizeof(Record)
-#define COLISION_TRESHOLD 28
+#define COLISION_TRESHOLD 30
 
 #define CM      35 // on encoders
 #define MM      5 // on encoders
@@ -75,5 +75,5 @@ enum states
     STATE_PLAY        = 0x04,
     STATE_ERASING     = 0x08,
     STATE_CORRECTION2 = 0x10,
-	STATE_COLLISION   = 0x20
+    STATE_COLLISION   = 0x20
 };
