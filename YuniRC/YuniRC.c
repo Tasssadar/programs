@@ -1,6 +1,7 @@
 //#define SET_FINDER_ADR 1
-#define FINDERS_DEBUG 1
+//#define FINDERS_DEBUG 1
 //#define EEPROM_PROTECTED 1
+#define RS232_CONNECTED 1
 
 #include "yunimin3.h"
 #include "enums.h"
@@ -19,6 +20,8 @@ uint32_t startTime;
 uint8_t memBegin;
 
 #include "func.h"
+
+void CheckProcedure();
 
 bool SetMovement(uint8_t key[])
 {
@@ -42,15 +45,19 @@ bool SetMovement(uint8_t key[])
                 state &= ~(STATE_COLLISION);
                 if(!(state & STATE_PLAY))
                 {  
+#ifdef RS232_CONNECTED
                     rs232.send("Playing..\r\n");   
+#endif
                     recordIter = 0; 
-                    lastAdress = 0;              
+                    lastAdress = 0;
                     state |= STATE_PLAY;
                     state &= ~(STATE_RECORD);
                 }
                 else
                 {
+#ifdef RS232_CONNECTED
                     rs232.send("Playback stopped\r\n");
+#endif
                     state &= ~(STATE_PLAY);
                 }
                 break;
@@ -90,14 +97,17 @@ bool SetMovement(uint8_t key[])
                 break;
             }
 #endif
-           case 'I':
-               setLeftServo(127);
-               setRightServo(127);
-               break;
+            case 'I':
+                setLeftServo(127);
+                setRightServo(127);
+                break;
             case 'O':
-               setLeftServo(-128);
-               setRightServo(-128);
-               break;
+                setLeftServo(-128);
+                setRightServo(-128);
+                break;
+            case 'K':
+                CheckProcedure();
+                break;
 
        }
     }
@@ -138,6 +148,43 @@ bool SetMovement(uint8_t key[])
     }
     SetMovementByFlags();
     return down_only;
+}
+
+void CheckProcedure()
+{
+    uint8_t key[16][3] = 
+    {
+        {'W', 'd', 0},
+        {'D', 'd', 5},
+        {'W', 'u', 0},
+
+        {'S', 'd', 10},
+        {'S', 'u', 0},
+
+        {'W', 'd', 5},
+        {'D', 'u', 0},
+
+        {'A', 'd', 5},
+        {'W', 'u', 0},
+
+        {'S', 'd', 10},
+        {'S', 'u', 0},
+
+        {'W', 'd', 5},
+        {'A', 'u', 0},
+        {'W', 'u', 0},
+
+        {'I', 'd', 5},
+        {'O', 'd', 0},
+    };
+    for(uint8_t i = 0; i < 15; ++i)
+    {
+        SetMovement(key[i]);
+        wait(key[i][2]*100000);
+    }
+    uint8_t adr = FINDER_FRONT1;
+    for(uint8_t i = 0; i < 6; ++i, adr +=2)
+        ReadRange(adr);
 }
 
 void MovementCorrection()
@@ -239,13 +286,11 @@ void run()
         // Move correction
         if((state & STATE_CORRECTION) && (moveflags == MOVE_FORWARD || moveflags == MOVE_BACKWARD))
             MovementCorrection();
-        
         if((state & STATE_PLAY) && getTickCount() - rangeCheckBase >= rangeDelay)
         {
             rangeCheckBase = getTickCount();
             checkCollision(&nextPlayBase, &nextPlay);
         }
-        
 
         if((state & STATE_PLAY) && !(state & STATE_COLLISION) &&
             (lastAdress == 0 || EventHappened(&lastRec, &nextPlayBase, &nextPlay)))
@@ -258,7 +303,9 @@ void run()
                lastAdress > 255)
             {
                 state &= ~(STATE_PLAY);
+#ifdef RS232_CONNECTED
                 rs232.send("Playback finished\r\n");
+#endif
                 setMotorPower(0, 0);
                 le_cor.stop();
                 re_cor.stop();
@@ -289,19 +336,20 @@ void run()
             ++recordIter;
         }
         //Read command
+#ifdef RS232_CONNECTED
         if(!rs232.peek(ch))
             continue;
 
         key[key_itr] = uint8_t(ch);
         ++key_itr;
-        
+    
         //key recieved
         if(key_itr >= 2)
         {
             key_itr = 0;
             SetMovement(key);
         }
-#ifndef EEPROM_PROTECTED
+ #ifndef EEPROM_PROTECTED
         // EEPROM Flash mode
         else if(ch == 0x1C)
         {
@@ -324,15 +372,16 @@ void run()
                 }
                 write_byte(lastAdress, uint8_t(ch));
                 ++lastAdress;
-                rs232.sendCharacter(0x1F);
+                if(lastAdress%5 == 0)
+                  rs232.sendCharacter(0x1F);
             }
             lastAdress = 0;
-             
+    
         }
-#else
+ #else
         else if(ch == 0x1C)
             continue;
-#endif
+ #endif
         // EEPROM read mode
         else if(ch == 0x16)
         {
@@ -348,6 +397,7 @@ void run()
             rs232.sendCharacter(0x18);
             lastAdress = 0;
         }
+#endif
     }
 }
 
