@@ -177,7 +177,7 @@ void CheckProcedure()
         {'I', 'd', 5},
         {'O', 'd', 0},
     };
-    for(uint8_t i = 0; i < 15; ++i)
+    for(uint8_t i = 0; i < 16; ++i)
     {
         SetMovement(key[i]);
         wait(key[i][2]*100000);
