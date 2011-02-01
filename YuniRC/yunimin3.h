@@ -247,16 +247,16 @@ inline void stopRightServo()
     OCR1BL = (uint8_t) ((JUNIOR_SERVO_TOP - 1));
 }
 
-inline void setLeftServo(int8_t left)
+inline void setLeftServo(int16_t left)
 {
-    uint16_t l = (JUNIOR_SERVO_TOP - 1) - (left * JUNIOR_SERVO_MUL + JUNIOR_SERVO_ZERO);
+    uint16_t l = (JUNIOR_SERVO_TOP - 1) - (left * 4 + 3150);
     OCR1AH = (uint8_t) (l >> 8);
     OCR1AL = (uint8_t) (l);
 }
 
-inline void setRightServo(int8_t right)
+inline void setRightServo(int16_t right)
 {
-    uint16_t r = (JUNIOR_SERVO_TOP - 1) - (right * JUNIOR_SERVO_MUL + JUNIOR_SERVO_ZERO);
+    uint16_t r = (JUNIOR_SERVO_TOP - 1) - (right * 4 + 3150);
     OCR1BH = (uint8_t) (r >> 8);
     OCR1BL = (uint8_t) (r);
 }
@@ -300,12 +300,12 @@ inline void setServoPos(int8_t left, int8_t right)
     detail::setRightServo(right);
 }
 
-inline void setLeftServo(int8_t left)
+inline void setLeftServo(int16_t left)
 {
     detail::setLeftServo(left);
 }
 
-inline void setRightServo(int8_t right)
+inline void setRightServo(int16_t right)
 {
     detail::setRightServo(right);
 }

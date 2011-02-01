@@ -98,12 +98,12 @@ bool SetMovement(uint8_t key[])
             }
 #endif
             case 'I':
-                setLeftServo(127);
-                setRightServo(127);
+                setLeftServo(705);
+                setRightServo(705);
                 break;
             case 'O':
-                setLeftServo(-128);
-                setRightServo(-128);
+                setLeftServo(-512);
+                setRightServo(-512);
                 break;
             case 'K':
                 CheckProcedure();
@@ -271,8 +271,8 @@ void run()
 
     memBegin = (getSensorValue(4) == 511) ? MEM_PART2 : MEM_PART1; // TODO: if something then part 2
 
-    setLeftServo(-127);
-    setRightServo(-127);
+    setLeftServo(-512);
+    setRightServo(-512);
 
     /*for(uint8_t z = 0; z < 7; ++z)
         CalibrateUltraSound();*/
