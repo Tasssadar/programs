@@ -247,16 +247,17 @@ inline void stopRightServo()
     OCR1BL = (uint8_t) ((JUNIOR_SERVO_TOP - 1));
 }
 
-inline void setLeftServo(int16_t left)
+inline void setLeftServo(uint8_t left)
 {
-    uint16_t l = (JUNIOR_SERVO_TOP - 1) - (left * 4 + 3150);
+
+    uint16_t l = 43181 + (left * 19);
     OCR1AH = (uint8_t) (l >> 8);
     OCR1AL = (uint8_t) (l);
 }
 
-inline void setRightServo(int16_t right)
+inline void setRightServo(uint8_t right)
 {
-    uint16_t r = (JUNIOR_SERVO_TOP - 1) - (right * 4 + 3150);
+    uint16_t r = 43181 + (right * 19);
     OCR1BH = (uint8_t) (r >> 8);
     OCR1BL = (uint8_t) (r);
 }
@@ -294,18 +295,18 @@ inline void stopRightServo()
     detail::stopRightServo();
 }
 
-inline void setServoPos(int8_t left, int8_t right)
+inline void setServoPos(uint8_t left, uint8_t right)
 {
     detail::setLeftServo(left);
     detail::setRightServo(right);
 }
 
-inline void setLeftServo(int16_t left)
+inline void setLeftServo(uint8_t left)
 {
     detail::setLeftServo(left);
 }
 
-inline void setRightServo(int16_t right)
+inline void setRightServo(uint8_t right)
 {
     detail::setRightServo(right);
 }
@@ -478,8 +479,10 @@ struct ground_sensors_t
 volatile struct ground_sensors_t g_sensors;
 uint16_t g_threshold = 512;
 
-inline void begin_emergency();
-inline void end_emergency();
+//inline void begin_emergency();
+//inline void end_emergency();
+
+inline void emergency(bool start);
 
 #ifndef JUNIOR_VOLTAGE_SENSOR
 #define JUNIOR_VOLTAGE_SENSOR 7
@@ -505,10 +508,11 @@ ISR(ADC_vect)
 
         if (currentSensor == JUNIOR_VOLTAGE_SENSOR)
         {
-            if (value < JUNIOR_VOLTAGE_THRESHOLD)
+            emergency(value < JUNIOR_VOLTAGE_THRESHOLD);
+            /*if (value < JUNIOR_VOLTAGE_THRESHOLD)
                 begin_emergency();
             else
-                end_emergency();
+                end_emergency(); */
         }
 
         currentSensor = (currentSensor + 1) & 0x07;
@@ -642,7 +646,7 @@ inline void toggleLed()
         setLed();
 }
 
-inline void begin_emergency()
+/*inline void begin_emergency()
 {
     g_emergency = true;
     if (g_power_off)
@@ -674,7 +678,7 @@ inline void end_emergency()
         else
             clearLed();
     }
-}
+} */
 
 inline void stop_single_led_power_off()
 {

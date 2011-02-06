@@ -11,6 +11,8 @@ enum states
 };
 
 uint8_t state = 0;
+bool sendEmergency = true;
+bool emergencySent = false;
 
 #include "func.h"
 #include "movement.h"
@@ -18,8 +20,9 @@ uint8_t state = 0;
 
 void run()
 {
-    char c;
-    state |= STATE_CORRECTION;
+    le.stop();
+    re.stop();
+    state = STATE_CORRECTION;
     while(true)
     {
         if((state & STATE_CORRECTION) && (moveflags == MOVE_FORWARD || moveflags == MOVE_BACKWARD))

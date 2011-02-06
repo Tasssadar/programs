@@ -6,6 +6,14 @@ enum Opcodes
     SMSG_SET_CORRECTION_VAL  = 0x04,
     SMSG_GET_RANGE_VAL       = 0x05,
     CMSG_GET_RANGE_VAL       = 0x06,
+    CMSG_EMERGENCY_START     = 0x07,
+    CMSG_EMERGENCY_END       = 0x08,
+    SMSG_SET_EMERGENCY_INFO  = 0x09,
+    SMSG_SET_SERVO_VAL       = 0x10,
+    SMSG_ENCODER_START       = 0x11,
+    SMSG_ENCODER_GET         = 0x12,
+    CMSG_ENCODER_SEND        = 0x13,
+    SMSG_ENCODER_STOP        = 0x14,
 };
 
 struct Packet
@@ -86,6 +94,7 @@ void handlePacket(Packet *pkt)
             correction_treshold = pkt->m_data[0];
             break;
         case SMSG_GET_RANGE_VAL:
+        {
             Packet range;
             range.m_opcode = CMSG_GET_RANGE_VAL;
             range.m_lenght = 3;
@@ -93,5 +102,56 @@ void handlePacket(Packet *pkt)
             range.setUInt16(1, ReadRange(pkt->m_data[0]));
             sendPacket(&range);
             break;
+        }
+        case SMSG_SET_EMERGENCY_INFO:
+            sendEmergency = (pkt->m_data[0] == 1) ? true : false;
+            break;
+        case SMSG_SET_SERVO_VAL:
+            setServoByFlags(pkt->m_data[0], pkt->m_data[1]);
+            break;
+        case SMSG_ENCODER_START:
+            le.start();
+            re.start();
+            break;
+        case SMSG_ENCODER_GET:
+        {    
+            Packet encoder;
+            encoder.m_opcode = CMSG_ENCODER_SEND;
+            encoder.m_lenght = 4;
+            encoder.setUInt16(0, le.get());
+            encoder.setUInt16(2, re.get());
+            sendPacket(&encoder);
+            break;
+        }
+        case SMSG_ENCODER_STOP:
+            le.stop();
+            re.stop();
+            if(pkt->m_data[0] == 1)
+            {
+                le.clear();
+                re.clear();
+            }
+            break;
+    }
+}
+
+inline void emergency(bool start)
+{
+    if((start && g_emergency) || (!start && !g_emergency))
+        return;
+    g_emergency = !g_emergency;
+
+
+    if(!sendEmergency)
+        return;
+
+    if((emergencySent && !start) || getTickCount() - startTime >= (1000000 * JUNIOR_WAIT_MUL / JUNIOR_WAIT_DIV))
+    {
+        Packet emergency;
+        emergency.m_opcode = start ? CMSG_EMERGENCY_START : CMSG_EMERGENCY_END;
+        emergency.m_lenght = 0;
+        sendPacket(&emergency);
+        startTime = getTickCount();
+        emergencySent = start;
     }
 }

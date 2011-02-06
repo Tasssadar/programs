@@ -9,12 +9,20 @@ enum moveFlags
     MOVE_RIGHT        = 0x08,
 };
 
+enum servoFlags
+{
+    SERVO_LEFT        = 0x01,
+    SERVO_RIGHT       = 0x02,
+};
+
 uint8_t moveflags;
 uint8_t speed;
 left_encoder le_cor;
 right_encoder re_cor;
 uint32_t startTime;
 uint8_t correction_treshold = 5;
+left_encoder le;
+right_encoder re;
 
 inline void SetMovementByFlags()
 {
@@ -95,4 +103,12 @@ void MovementCorrection()
     re_cor.clear();
     le_cor.clear();
     
+}
+
+void setServoByFlags(uint8_t flags, uint8_t val)
+{
+    if(flags & SERVO_LEFT)
+        setLeftServo(val);
+    if(flags & SERVO_RIGHT)
+        setRightServo(val);       
 }
