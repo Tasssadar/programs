@@ -2,6 +2,7 @@
 //#define FINDERS_DEBUG 1
 //#define EEPROM_PROTECTED 1
 #define RS232_CONNECTED 1
+//#define CHECK_PROCEDURE 1
 
 #include "yunimin3.h"
 #include "enums.h"
@@ -105,10 +106,11 @@ bool SetMovement(uint8_t key[])
                 setLeftServo(-512);
                 setRightServo(-512);
                 break;
+#ifdef CHECK_PROCEDURE
             case 'K':
                 CheckProcedure();
                 break;
-
+#endif
        }
     }
     // Movement
@@ -149,7 +151,7 @@ bool SetMovement(uint8_t key[])
     SetMovementByFlags();
     return down_only;
 }
-
+#ifdef CHECK_PROCEDURE
 void CheckProcedure()
 {
     uint8_t key[16][3] = 
@@ -186,6 +188,7 @@ void CheckProcedure()
     for(uint8_t i = 0; i < 6; ++i, adr +=2)
         ReadRange(adr);
 }
+#endif
 
 void MovementCorrection()
 {
@@ -379,8 +382,13 @@ void run()
     
         }
  #else
-        else if(ch == 0x1C)
+	else if(ch == 0x1C)
+        {
+            while(key_itr < 2)
+                key[++key_itr] = '0';
+            rs232.sendCharacter(0x15);
             continue;
+        }
  #endif
         // EEPROM read mode
         else if(ch == 0x16)
