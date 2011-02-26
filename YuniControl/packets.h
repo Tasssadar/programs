@@ -14,17 +14,22 @@ enum Opcodes
     SMSG_ENCODER_GET         = 0x12,
     CMSG_ENCODER_SEND        = 0x13,
     SMSG_ENCODER_STOP        = 0x14,
+    CMSG_LASER_GATE_STAT     = 0x15,
+    SMSG_LASER_GATE_SET      = 0x16,
+    CMSG_BUTTON_STATUS       = 0x17,
+    SMSG_ADD_STATE           = 0x18,
+    SMSG_REMOVE_STATE        = 0x19,
 };
 
 struct Packet
 {
-   /* Packet(uint8_t opcode, uint8_t lenght, uint8_t data[50])
+    Packet(uint8_t opcode = 0, uint8_t lenght = 0, uint8_t data[50] = 0)
     {
         m_opcode = opcode;
         m_lenght = lenght;
-        for(uint8_t i = 0; i < 50; ++i)
+        for(uint8_t i = 0; i < lenght; ++i)
             m_data[i] = data[i];
-    }*/
+    }
 
     uint8_t m_opcode;
     uint8_t m_lenght;
@@ -77,9 +82,7 @@ void handlePacket(Packet *pkt)
     {
         case SMSG_PING:
         {
-            Packet pong;
-            pong.m_opcode = CMSG_PONG;
-            pong.m_lenght = 0;
+            Packet pong(CMSG_PONG, 0);
             sendPacket(&pong);
             break;
         }
@@ -95,9 +98,7 @@ void handlePacket(Packet *pkt)
             break;
         case SMSG_GET_RANGE_VAL:
         {
-            Packet range;
-            range.m_opcode = CMSG_GET_RANGE_VAL;
-            range.m_lenght = 3;
+            Packet range(CMSG_GET_RANGE_VAL, 3);
             range.m_data[0] = pkt->m_data[0];
             range.setUInt16(1, ReadRange(pkt->m_data[0]));
             sendPacket(&range);
@@ -115,9 +116,7 @@ void handlePacket(Packet *pkt)
             break;
         case SMSG_ENCODER_GET:
         {    
-            Packet encoder;
-            encoder.m_opcode = CMSG_ENCODER_SEND;
-            encoder.m_lenght = 4;
+            Packet encoder(CMSG_ENCODER_SEND, 4);
             encoder.setUInt16(0, le.get());
             encoder.setUInt16(2, re.get());
             sendPacket(&encoder);
@@ -132,6 +131,16 @@ void handlePacket(Packet *pkt)
                 re.clear();
             }
             break;
+        case SMSG_ADD_STATE:
+            state |= pkt->m_data[0];
+            break;
+        case SMSG_REMOVE_STATE:
+            state &= ~(pkt->m_data[0]);
+            break;
+        case SMSG_LASER_GATE_SET:
+            //TODO implement
+            break;
+            
     }
 }
 
@@ -145,13 +154,34 @@ inline void emergency(bool start)
     if(!sendEmergency)
         return;
 
-    if((emergencySent && !start) || getTickCount() - startTime >= (1000000 * JUNIOR_WAIT_MUL / JUNIOR_WAIT_DIV))
+    if((emergencySent && !start) || (getTickCount() - startTime >= (1000000 * JUNIOR_WAIT_MUL / JUNIOR_WAIT_DIV) && start))
     {
-        Packet emergency;
+        /*Packet emergency;
         emergency.m_opcode = start ? CMSG_EMERGENCY_START : CMSG_EMERGENCY_END;
         emergency.m_lenght = 0;
         sendPacket(&emergency);
-        startTime = getTickCount();
-        emergencySent = start;
+       // startTime = getTickCount();
+        emergencySent = start;*/
     }
+      static uint8_t phase = 0;
+    if(start)
+    {
+       
+    
+        if (phase < 32)
+        {
+            JUNIOR_CONCAT(PORT, JUNIOR_LED_PORT) |= (1<<JUNIOR_LED_PIN);
+            JUNIOR_CONCAT(DDR , JUNIOR_LED_PORT) |= (1<<JUNIOR_LED_PIN);
+        }
+        else
+        {
+            JUNIOR_CONCAT(DDR , JUNIOR_LED_PORT) &= ~(1<<JUNIOR_LED_PIN);
+            JUNIOR_CONCAT(PORT, JUNIOR_LED_PORT) &= ~(1<<JUNIOR_LED_PIN);
+        }
+    
+        phase = (phase + 1) % 64;
+    
+    }
+    else
+        clearLed();
 }

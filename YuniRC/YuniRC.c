@@ -2,7 +2,8 @@
 //#define FINDERS_DEBUG 1
 //#define EEPROM_PROTECTED 1
 #define RS232_CONNECTED 1
-//#define CHECK_PROCEDURE 1
+#define CHECK_PROCEDURE 1
+#define COR_DISABLED 1
 
 #include "yunimin3.h"
 #include "enums.h"
@@ -189,7 +190,7 @@ void CheckProcedure()
         ReadRange(adr);
 }
 #endif
-
+#ifndef COR_DISABLED
 void MovementCorrection()
 {
     int8_t speed_cor = moveflags == MOVE_FORWARD ? speed : -speed;
@@ -213,7 +214,7 @@ void MovementCorrection()
     le_cor.clear();
     
 }
-
+#endif
 void checkCollision(uint32_t *nextPlayBase, uint32_t *nextPlay)
 {
     if(moveflags != MOVE_FORWARD && moveflags != MOVE_BACKWARD)
@@ -272,7 +273,7 @@ void run()
     uint32_t rangeCheckBase = getTickCount();
     const uint32_t rangeDelay = (300000) * JUNIOR_WAIT_MUL / JUNIOR_WAIT_DIV;
 
-    memBegin = (getSensorValue(4) == 511) ? MEM_PART2 : MEM_PART1; // TODO: if something then part 2
+    memBegin = /*(getSensorValue(4) == 511) ? MEM_PART2 : */MEM_PART1; // TODO: if something then part 2
 
     setLeftServo(-512);
     setRightServo(-512);
@@ -285,10 +286,11 @@ void run()
     {
         if(state & STATE_ERASING)
             continue;
-
+#ifndef COR_DISABLED
         // Move correction
         if((state & STATE_CORRECTION) && (moveflags == MOVE_FORWARD || moveflags == MOVE_BACKWARD))
             MovementCorrection();
+#endif
         if((state & STATE_PLAY) && getTickCount() - rangeCheckBase >= rangeDelay)
         {
             rangeCheckBase = getTickCount();
