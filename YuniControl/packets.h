@@ -117,8 +117,8 @@ void handlePacket(Packet *pkt)
         case SMSG_ENCODER_GET:
         {    
             Packet encoder(CMSG_ENCODER_SEND, 4);
-            encoder.setUInt16(0, le.get());
-            encoder.setUInt16(2, re.get());
+            encoder.setUInt16(0, fabs(le.get()));
+            encoder.setUInt16(2, fabs(re.get()));
             sendPacket(&encoder);
             break;
         }
@@ -140,7 +140,6 @@ void handlePacket(Packet *pkt)
         case SMSG_LASER_GATE_SET:
             //TODO implement
             break;
-            
     }
 }
 
@@ -150,24 +149,19 @@ inline void emergency(bool start)
         return;
     g_emergency = !g_emergency;
 
-
-    if(!sendEmergency)
-        return;
-
-    if((emergencySent && !start) || (getTickCount() - startTime >= (1000000 * JUNIOR_WAIT_MUL / JUNIOR_WAIT_DIV) && start))
+    if(sendEmergency && ((emergencySent && !start) || (getTickCount() - startTime >= (1000000 * JUNIOR_WAIT_MUL / JUNIOR_WAIT_DIV) && start)))
     {
-        /*Packet emergency;
+        Packet emergency;
         emergency.m_opcode = start ? CMSG_EMERGENCY_START : CMSG_EMERGENCY_END;
         emergency.m_lenght = 0;
         sendPacket(&emergency);
        // startTime = getTickCount();
-        emergencySent = start;*/
+        emergencySent = start;
     }
-      static uint8_t phase = 0;
+
+    static uint8_t phase = 0;
     if(start)
     {
-       
-    
         if (phase < 32)
         {
             JUNIOR_CONCAT(PORT, JUNIOR_LED_PORT) |= (1<<JUNIOR_LED_PIN);
@@ -178,9 +172,7 @@ inline void emergency(bool start)
             JUNIOR_CONCAT(DDR , JUNIOR_LED_PORT) &= ~(1<<JUNIOR_LED_PIN);
             JUNIOR_CONCAT(PORT, JUNIOR_LED_PORT) &= ~(1<<JUNIOR_LED_PIN);
         }
-    
         phase = (phase + 1) % 64;
-    
     }
     else
         clearLed();
