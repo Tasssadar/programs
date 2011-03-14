@@ -1,4 +1,6 @@
-inline int16_t fabs(int16_t num)
+
+template <typename T>
+inline T fabs(T num)
 {
     if(num < 0)
         return -num;
