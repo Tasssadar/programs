@@ -11,7 +11,7 @@ enum states
 };
 
 uint8_t state = 0;
-bool sendEmergency = true;
+bool sendEmergency = false;
 bool emergencySent = false;
 
 #include "func.h"
@@ -20,14 +20,12 @@ bool emergencySent = false;
 
 void run()
 {
-    le.stop();
-    re.stop();
     state = STATE_CORRECTION;
     while(true)
     {
         if((state & STATE_CORRECTION) && (moveflags == MOVE_FORWARD || moveflags == MOVE_BACKWARD))
             MovementCorrection();
-    
+
         if(!readPacket())
            continue;
 

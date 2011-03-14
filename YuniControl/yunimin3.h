@@ -1622,7 +1622,7 @@ public:
 #define JUNIOR_ENCODER_RIGHT_vect PCINT0_vect
 #define JUNIOR_ENCODER_RIGHT_PIN1 5
 #define JUNIOR_ENCODER_RIGHT_PIN2 4
-
+/*
 typedef int32_t encoder_t;
 
 volatile encoder_t g_left_encoder = 0;
@@ -1660,7 +1660,7 @@ encoder_t getRightEncoder()
     encoder_t res = g_right_encoder;
     sei();
     return res;
-}
+}*/
 
 void init_encoders()
 {
@@ -1681,6 +1681,7 @@ void clean_encoders()
     JUNIOR_CONCAT(PCMSK, JUNIOR_ENCODER_RIGHT_PCI) = 0;
 }
 
+/*
 #ifndef JUNIOR_H_ASYNC_COUNTER_H
 #define JUNIOR_H_ASYNC_COUNTER_H
 
@@ -1772,7 +1773,7 @@ struct rightenc_getter
 
 typedef async_counter<leftenc_getter> left_encoder;
 typedef async_counter<rightenc_getter> right_encoder;
-
+*/
 
 void run();
 

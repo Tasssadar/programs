@@ -14,11 +14,13 @@ enum Opcodes
     SMSG_ENCODER_GET         = 0x12,
     CMSG_ENCODER_SEND        = 0x13,
     SMSG_ENCODER_STOP        = 0x14,
-    CMSG_LASER_GATE_STAT     = 0x15,
-    SMSG_LASER_GATE_SET      = 0x16,
-    CMSG_BUTTON_STATUS       = 0x17,
-    SMSG_ADD_STATE           = 0x18,
-    SMSG_REMOVE_STATE        = 0x19,
+    SMSG_ENCODER_SET_EVENT   = 0x15,
+    CMSG_ENCODER_EVENT_DONE  = 0x16,
+    CMSG_LASER_GATE_STAT     = 0x17,
+    SMSG_LASER_GATE_SET      = 0x18,
+    CMSG_BUTTON_STATUS       = 0x19,
+    SMSG_ADD_STATE           = 0x20,
+    SMSG_REMOVE_STATE        = 0x21,
 };
 
 struct Packet
@@ -57,8 +59,11 @@ Packet pkt;
 
 bool readPacket()
 {
-    char c = rs232.get();
     
+    char c;
+    if(!rs232.peek(c))
+        return false;
+   
     if(pktItr == 1)
         pkt.m_opcode = uint8_t(c);
     else if(pktItr == 2)
@@ -111,26 +116,24 @@ void handlePacket(Packet *pkt)
             setServoByFlags(pkt->m_data[0], pkt->m_data[1]);
             break;
         case SMSG_ENCODER_START:
-            le.start();
-            re.start();
+        case SMSG_ENCODER_STOP:
+            clearEnc(false);
             break;
         case SMSG_ENCODER_GET:
         {    
             Packet encoder(CMSG_ENCODER_SEND, 4);
-            encoder.setUInt16(0, fabs(le.get()));
-            encoder.setUInt16(2, fabs(re.get()));
+            encoder.setUInt16(0, fabs(getLeftEnc()));
+            encoder.setUInt16(2, fabs(getRightEnc()));
             sendPacket(&encoder);
             break;
         }
-        case SMSG_ENCODER_STOP:
-            le.stop();
-            re.stop();
-            if(pkt->m_data[0] == 1)
-            {
-                le.clear();
-                re.clear();
-            }
+        case SMSG_ENCODER_SET_EVENT:
+        {
+            setEncEvent(pkt->m_data[0], pkt->readUInt16(1), pkt->readUInt16(3));
+            if(pkt->m_data[5] == 1)
+                clearEnc(false);
             break;
+        }
         case SMSG_ADD_STATE:
             state |= pkt->m_data[0];
             break;
@@ -176,4 +179,20 @@ inline void emergency(bool start)
     }
     else
         clearLed();
+}
+
+void checkEncEvent(bool right)
+{
+    for(uint8_t y = 0; y < 5; ++y)
+    {
+        if(enc_events[y].id == 0)
+            continue;
+        if(enc_events[y].left <= fabs(getLeftEnc()) && enc_events[y].right <= fabs(getRightEnc()))
+        {
+            Packet encoder(CMSG_ENCODER_EVENT_DONE, 1);
+            encoder.m_data[0] = enc_events[y].id;
+            sendPacket(&encoder);
+            enc_events[y].id = 0;
+        }        
+    }
 }
