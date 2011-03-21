@@ -47,33 +47,46 @@ struct Packet
 
 void sendPacket(Packet *pkt)
 {
-    rs232.sendCharacter(1);
-    rs232.sendCharacter(pkt->m_opcode);
+    rs232.sendCharacter(0xFF);
+    rs232.sendCharacter(0x01);
     rs232.sendCharacter(pkt->m_lenght);
+    rs232.sendCharacter(pkt->m_opcode);
     rs232.sendBytes(pkt->m_data, pkt->m_lenght);
 }
 
 
 uint8_t pktItr = 0;
 Packet pkt;
+uint8_t startItr = 0;
 
 bool readPacket()
 {
-    
     char c;
     if(!rs232.peek(c))
         return false;
-   
-    if(pktItr == 1)
-        pkt.m_opcode = uint8_t(c);
+    
+    if(!startItr && uint8_t(c) == 0xFF)
+    {
+        startItr = 1;
+        return false;
+    }
+    
+    if(startItr && uint8_t(c) == 0x01)
+    {
+        pktItr = 1;
+        startItr = 0;
+    }
     else if(pktItr == 2)
         pkt.m_lenght = uint8_t(c);
-    else if(pktItr >= 3 && pktItr < pkt.m_lenght+3)
-        pkt.m_data[pktItr-3] = uint8_t(c);
-
+    else if(pktItr == 3)
+        pkt.m_opcode = uint8_t(c);
+    else if(pktItr >= 4 && pktItr < pkt.m_lenght+4)
+        pkt.m_data[pktItr-4] = uint8_t(c);
+    else 
+        return false;
     ++pktItr;
 
-    if(pktItr > 2 && pkt.m_opcode != 0 && pktItr == pkt.m_lenght+3)
+    if(pktItr > 3 && pkt.m_opcode != 0 && pktItr == pkt.m_lenght+4)
     {
         pktItr = 0;
         return true;
@@ -193,6 +206,6 @@ void checkEncEvent(bool right)
             encoder.m_data[0] = enc_events[y].id;
             sendPacket(&encoder);
             enc_events[y].id = 0;
-        }        
+        }
     }
 }

@@ -841,7 +841,7 @@ public:
     {
         if (m_rxbuf.empty())
             return false;
-            
+
         ch = m_rxbuf.top();
         m_rxbuf.pop();
         return true;
