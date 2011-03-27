@@ -21,21 +21,22 @@ enum Opcodes
     CMSG_BUTTON_STATUS       = 0x19,
     SMSG_ADD_STATE           = 0x20,
     SMSG_REMOVE_STATE        = 0x21,
+    SMSG_STOP                = 0x22,
+    CMSG_LOCKED              = 0x23,
+    SMSG_UNLOCK              = 0x24,
 };
 
 struct Packet
 {
-    Packet(uint8_t opcode = 0, uint8_t lenght = 0, uint8_t data[50] = 0)
+    Packet(uint8_t opcode = 0, uint8_t lenght = 0)
     {
         m_opcode = opcode;
         m_lenght = lenght;
-        for(uint8_t i = 0; i < lenght; ++i)
-            m_data[i] = data[i];
     }
 
     uint8_t m_opcode;
     uint8_t m_lenght;
-    uint8_t m_data[50];
+    uint8_t m_data[10];
 
     uint16_t readUInt16(uint8_t index) const { return ((m_data[index] << 8) | (m_data[index+1] & 0xFF)); }
     void setUInt16(uint8_t index, uint16_t val)
@@ -96,6 +97,12 @@ bool readPacket()
 
 void handlePacket(Packet *pkt)
 {
+   /* if((state & STATE_LOCKED) && pkt->m_opcode != SMSG_UNLOCK)
+    {
+        Packet lock(CMSG_LOCKED, 0);
+        sendPacket(&lock);
+        return;
+    }*/
     switch(pkt->m_opcode)
     {
         case SMSG_PING:
@@ -156,6 +163,16 @@ void handlePacket(Packet *pkt)
         case SMSG_LASER_GATE_SET:
             //TODO implement
             break;
+        case SMSG_STOP:
+        {
+            StopAll(true);
+            Packet lock(CMSG_LOCKED, 0);
+            sendPacket(&lock);
+            break;
+        }
+        case SMSG_UNLOCK:
+            StartAll(true);
+            break;
     }
 }
 
@@ -200,7 +217,8 @@ void checkEncEvent(bool right)
     {
         if(enc_events[y].id == 0)
             continue;
-        if(enc_events[y].left <= fabs(getLeftEnc()) && enc_events[y].right <= fabs(getRightEnc()))
+        if((enc_events[y].left != 0 || enc_events[y].left <= fabs(getLeftEnc())) && 
+            (enc_events[y].right != 0 || enc_events[y].right <= fabs(getRightEnc())))
         {
             Packet encoder(CMSG_ENCODER_EVENT_DONE, 1);
             encoder.m_data[0] = enc_events[y].id;

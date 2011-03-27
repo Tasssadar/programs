@@ -18,8 +18,8 @@ enum servoFlags
 struct EncoderEvent
 {
     uint8_t id;
-    uint32_t left;
-    uint32_t right;
+    uint16_t left;
+    uint16_t right;
 };
 
 uint8_t moveflags;
@@ -33,6 +33,8 @@ volatile int32_t g_right_encoder = 0;
 
 volatile int32_t g_left_cor = 0;
 volatile int32_t g_right_cor = 0;
+void StopAll(bool lock = true);
+void StartAll(bool unlock = true);
 
 int32_t getLeftEnc(bool cor = false)
 {
@@ -102,7 +104,14 @@ void clearEnc(bool correction = true)
 
 inline void SetMovementByFlags()
 {
-    if(moveflags & MOVE_FORWARD)
+    if(moveflags == MOVE_NONE)
+    {
+        startTime = getTickCount();
+        setMotorPower(0, 0);
+        clearEnc();
+        state &= ~(STATE_CORRECTION2);
+    }
+    else if(moveflags & MOVE_FORWARD)
     {
         if(moveflags & MOVE_LEFT)
             setMotorPower(speed-TURN_VALUE, speed);
@@ -180,7 +189,7 @@ void setServoByFlags(uint8_t flags, uint8_t val)
         setRightServo(val);       
 }
 
-void setEncEvent(uint8_t id, uint32_t left, uint32_t right)
+void setEncEvent(uint8_t id, uint16_t left, uint16_t right)
 {
     for(uint8_t y = 0; y < 5; ++y)
     {
@@ -191,4 +200,26 @@ void setEncEvent(uint8_t id, uint32_t left, uint32_t right)
         enc_events[y].right = right;
         break;
     }
+}
+
+void StopAll(bool lock)
+{
+    if(lock)
+        state |= STATE_LOCKED;
+    moveflags = MOVE_NONE;
+    SetMovementByFlags();  
+    
+    clean_single_led_power_off();
+    clean_indirect_sensors();
+    clean_dc_motor();
+}
+
+void StartAll(bool unlock)
+{
+    if(unlock)
+        state &= ~(STATE_LOCKED);
+         
+    init_timer_servo();
+    init_dc_motor();
+    init_indirect_sensors();
 }
