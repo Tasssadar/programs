@@ -11,8 +11,9 @@ enum moveFlags
 
 enum servoFlags
 {
-    SERVO_LEFT        = 0x01,
-    SERVO_RIGHT       = 0x02,
+    SERVO_DOORS        = 0x01,
+    SERVO_BRUSHES      = 0x02,
+    SERVO_REEL         = 0x04,
 };
 
 struct EncoderEvent
@@ -70,7 +71,7 @@ ISR(JUNIOR_ENCODER_LEFT_vect)
     checkEncEvent(false);
 }
 
-ISR(JUNIOR_ENCODER_RIGHT_vect)
+void rightEnc()
 {
     uint8_t port = JUNIOR_CONCAT(PIN, JUNIOR_ENCODER_RIGHT_PORT);
     if (((port & (1<<JUNIOR_ENCODER_RIGHT_PIN1)) != 0) == ((port & (1<<JUNIOR_ENCODER_RIGHT_PIN2)) != 0))
@@ -181,23 +182,29 @@ void MovementCorrection()
     clearEnc();
 }
 
-void setServoByFlags(uint8_t flags, uint8_t val)
+void setServoByFlags(uint8_t flags, int16_t val)
 {
-    if(flags & SERVO_LEFT)
+    if(flags & SERVO_DOORS)
         setLeftServo(val);
-    if(flags & SERVO_RIGHT)
-        setRightServo(val);       
+    if(flags & SERVO_BRUSHES)
+        setRightServo(val);
+//TODO
+//    if(flags & SERVO_REEL)
+//        startReel();
 }
 
 void setEncEvent(uint8_t id, uint16_t left, uint16_t right)
 {
+   
     for(uint8_t y = 0; y < 5; ++y)
     {
         if(enc_events[y].id != 0)
             continue;
+        cli();
         enc_events[y].id = id;
         enc_events[y].left = left;
         enc_events[y].right = right;
+        sei();
         break;
     }
 }
@@ -210,7 +217,7 @@ void StopAll(bool lock)
     SetMovementByFlags();  
     
     clean_single_led_power_off();
-    clean_indirect_sensors();
+ //   clean_indirect_sensors();
     clean_dc_motor();
 }
 
@@ -221,5 +228,5 @@ void StartAll(bool unlock)
          
     init_timer_servo();
     init_dc_motor();
-    init_indirect_sensors();
+   // init_indirect_sensors();
 }

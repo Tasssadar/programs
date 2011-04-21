@@ -1,5 +1,5 @@
-//#define SET_FINDER_ADR 1
-//#define FINDERS_DEBUG 1
+#define SET_FINDER_ADR 1
+#define FINDERS_DEBUG 1
 //#define EEPROM_PROTECTED 1
 #define RS232_CONNECTED 1
 #define CHECK_PROCEDURE 1
@@ -100,12 +100,14 @@ bool SetMovement(uint8_t key[])
             }
 #endif
             case 'I':
-                setLeftServo(705);
-                setRightServo(705);
+			    // 405, 312 packy
+				// 650, 012 kartace
+                setLeftServo(405);
+                setRightServo(650);
                 break;
             case 'O':
-                setLeftServo(-512);
-                setRightServo(-512);
+                setLeftServo(-312);
+                setRightServo(-012);
                 break;
 #ifdef CHECK_PROCEDURE
             case 'K':
@@ -275,11 +277,14 @@ void run()
 
     memBegin = /*(getSensorValue(4) == 511) ? MEM_PART2 : */MEM_PART1; // TODO: if something then part 2
 
-    setLeftServo(-512);
-    setRightServo(-512);
+  // setLeftServo(-112);
+   // setRightServo(-112);
 
     /*for(uint8_t z = 0; z < 7; ++z)
         CalibrateUltraSound();*/
+
+    //waitForStartButton();
+	//rs232.send("got it ");
 
     char ch;
     while(true)

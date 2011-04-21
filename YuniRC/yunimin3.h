@@ -134,6 +134,7 @@ ISR(TIMER1_OVF_vect)
 #endif
 }
 
+
 inline uint32_t getTickCount()
 {
     uint32_t res;
@@ -1445,6 +1446,7 @@ inline bool isStartButtonPressed()
 inline void init_buttons()
 {
     PORTB |= (1<<0);
+	PCMSK0 |= (1<<PCINT0);
 }
 
 inline void clean_buttons()
@@ -1609,7 +1611,7 @@ public:
                        
 #define JUNIOR_ENCODER_RIGHT_PORT B
 #define JUNIOR_ENCODER_RIGHT_PCI 0
-#define JUNIOR_ENCODER_RIGHT_vect PCINT0_vect
+#define JUNIOR_ENCODER_RIGHT_vect PCINT3_vect
 #define JUNIOR_ENCODER_RIGHT_PIN1 5
 #define JUNIOR_ENCODER_RIGHT_PIN2 4
 

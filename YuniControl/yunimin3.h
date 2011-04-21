@@ -247,17 +247,16 @@ inline void stopRightServo()
     OCR1BL = (uint8_t) ((JUNIOR_SERVO_TOP - 1));
 }
 
-inline void setLeftServo(uint8_t left)
+inline void setLeftServo(int16_t left)
 {
-
-    uint16_t l = 43181 + (left * 19);
+    uint16_t l = (JUNIOR_SERVO_TOP - 1) - (left * 4 + 3150);
     OCR1AH = (uint8_t) (l >> 8);
     OCR1AL = (uint8_t) (l);
 }
 
-inline void setRightServo(uint8_t right)
+inline void setRightServo(int16_t right)
 {
-    uint16_t r = 43181 + (right * 19);
+    uint16_t r = (JUNIOR_SERVO_TOP - 1) - (right * 4 + 3150);
     OCR1BH = (uint8_t) (r >> 8);
     OCR1BL = (uint8_t) (r);
 }
@@ -301,12 +300,12 @@ inline void setServoPos(uint8_t left, uint8_t right)
     detail::setRightServo(right);
 }
 
-inline void setLeftServo(uint8_t left)
+inline void setLeftServo(int16_t left)
 {
     detail::setLeftServo(left);
 }
 
-inline void setRightServo(uint8_t right)
+inline void setRightServo(int16_t right)
 {
     detail::setRightServo(right);
 }
@@ -502,18 +501,23 @@ ISR(ADC_vect)
     {
         uint8_t adcl = ADCL;
         uint8_t adch = ADCH;
-        
+
         uint16_t value = (adch << 8) | (adcl);
         g_sensors.value[sensorMap[currentSensor]] = value;
+        if(currentSensor == 0 && checkForStart && value - g_threshold == 511)
+        {
+            checkForStart = false;
+            StartMatch();
+        }
 
-        if (currentSensor == JUNIOR_VOLTAGE_SENSOR)
+        /*if (currentSensor == JUNIOR_VOLTAGE_SENSOR)
         {
             emergency(value < JUNIOR_VOLTAGE_THRESHOLD);
-            /*if (value < JUNIOR_VOLTAGE_THRESHOLD)
+            if (value < JUNIOR_VOLTAGE_THRESHOLD)
                 begin_emergency();
             else
-                end_emergency(); */
-        }
+                end_emergency(); 
+        }*/
 
         currentSensor = (currentSensor + 1) & 0x07;
 
@@ -523,7 +527,8 @@ ISR(ADC_vect)
     initSensor = !initSensor;
     
     // Start the next conversion
-    ADCSRA |= (1<<ADSC);
+    if(checkForStart)
+        ADCSRA |= (1<<ADSC);
 }
 
 inline void init_indirect_sensors()
@@ -576,8 +581,7 @@ inline int16_t getSensorValue(uint8_t index)
     sei();
     nop();
 
-    return res; 
-	return 0;
+    return res;
 }
 
 inline void calibrate_sensors()
@@ -589,7 +593,6 @@ inline void calibrate_sensors()
     
     g_threshold = (uint16_t) (avg / 4);
 }
-
 
 #define JUNIOR_LED_PORT D
 #define JUNIOR_LED_PIN 7
@@ -1454,12 +1457,14 @@ inline bool isStartButtonPressed()
 
 inline void init_buttons()
 {
-    PORTB |= (1<<0);
+    PORTB |= (1<<0)|(1<<4);
+    PCMSK0 |= (1<<PCINT0)|(1<<PCINT4);
 }
 
 inline void clean_buttons()
 {
-    PORTB &= ~(1<<0);
+   // PORTB &= ~(1<<0);
+     PCMSK0 &= ~(1<<PCINT0);
 }
 
 inline void stop_buttons()
@@ -1619,7 +1624,7 @@ public:
                        
 #define JUNIOR_ENCODER_RIGHT_PORT B
 #define JUNIOR_ENCODER_RIGHT_PCI 0
-#define JUNIOR_ENCODER_RIGHT_vect PCINT0_vect
+#define JUNIOR_ENCODER_RIGHT_vect PCINT3_vect
 #define JUNIOR_ENCODER_RIGHT_PIN1 5
 #define JUNIOR_ENCODER_RIGHT_PIN2 4
 /*
@@ -1805,7 +1810,7 @@ inline void stop()
 {
     stop_timer_servo();
     stop_dc_motor();
-    stop_indirect_sensors();
+   // stop_indirect_sensors();
     stop_single_led_power_off();
     stop_rs232();
     stop_i2c();

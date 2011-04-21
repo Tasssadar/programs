@@ -77,7 +77,7 @@ inline uint16_t ReadRange(uint8_t adress)//, uint8_t method = RANGE_CENTIMETRES)
     i2c.write(adress, &data[0], 2);
     if(i2c.get_result().result != 2)
         return 0;
-    wait(70000); // maybe we can use smaller value
+    wait(20000); // maybe we can use smaller value
     i2c.write(adress, 0x02); // range High-byte
     if(i2c.get_result().result != 1)
         return 0;
@@ -219,4 +219,10 @@ inline void SetMovementByFlags()
         re_cor.stop();
         state &= ~(STATE_CORRECTION2);
     }
+}
+
+ISR(PCINT0_vect)//PCMSK0 |= (1<<PCINT0);
+{
+    if((PINB & (1<<0)) == 0)
+        rs232.send("aaaa ");
 }

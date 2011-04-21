@@ -4,8 +4,8 @@ enum Opcodes
     CMSG_PONG                = 0x02,
     SMSG_SET_MOVEMENT        = 0x03,
     SMSG_SET_CORRECTION_VAL  = 0x04,
-    SMSG_GET_RANGE_VAL       = 0x05,
-    CMSG_GET_RANGE_VAL       = 0x06,
+    CMSG_RANGE_BLOCK         = 0x05,
+    CMSG_RANGE_BLOCK_GONE    = 0x06,
     CMSG_EMERGENCY_START     = 0x07,
     CMSG_EMERGENCY_END       = 0x08,
     SMSG_SET_EMERGENCY_INFO  = 0x09,
@@ -24,6 +24,8 @@ enum Opcodes
     SMSG_STOP                = 0x22,
     CMSG_LOCKED              = 0x23,
     SMSG_UNLOCK              = 0x24,
+    SMSG_CONNECT_REQ         = 0x25,
+    CMSG_CONNECT_RES         = 0x26,
 };
 
 struct Packet
@@ -59,6 +61,7 @@ void sendPacket(Packet *pkt)
 uint8_t pktItr = 0;
 Packet pkt;
 uint8_t startItr = 0;
+Packet pong(CMSG_PONG, 0);
 
 bool readPacket()
 {
@@ -97,18 +100,25 @@ bool readPacket()
 
 void handlePacket(Packet *pkt)
 {
-   /* if((state & STATE_LOCKED) && pkt->m_opcode != SMSG_UNLOCK)
+    if((state & STATE_LOCKED) && pkt->m_opcode != SMSG_UNLOCK && 
+        pkt->m_opcode != SMSG_CONNECT_REQ)
     {
-        Packet lock(CMSG_LOCKED, 0);
+        Packet lock(CMSG_LOCKED, 1);
+        lock.m_data[0] = (state & STATE_PAUSED);
         sendPacket(&lock);
         return;
-    }*/
+    }
     switch(pkt->m_opcode)
     {
         case SMSG_PING:
         {
-            Packet pong(CMSG_PONG, 0);
             sendPacket(&pong);
+#ifdef PING
+            pingTimer = PING_TIME;
+            SendRangeReq();
+            rangeTimer = RANGE_TIME;
+            checkRangeNow = true;
+#endif
             break;
         }
         case SMSG_SET_MOVEMENT:
@@ -121,20 +131,15 @@ void handlePacket(Packet *pkt)
         case SMSG_SET_CORRECTION_VAL:
             correction_treshold = pkt->m_data[0];
             break;
-        case SMSG_GET_RANGE_VAL:
-        {
-            Packet range(CMSG_GET_RANGE_VAL, 3);
-            range.m_data[0] = pkt->m_data[0];
-            range.setUInt16(1, ReadRange(pkt->m_data[0]));
-            sendPacket(&range);
-            break;
-        }
         case SMSG_SET_EMERGENCY_INFO:
             sendEmergency = (pkt->m_data[0] == 1) ? true : false;
             break;
         case SMSG_SET_SERVO_VAL:
-            setServoByFlags(pkt->m_data[0], pkt->m_data[1]);
+        {
+            int16_t val = (pkt->m_data[3] == 1) ? -(pkt->readUInt16(1)) : pkt->readUInt16(1);
+            setServoByFlags(pkt->m_data[0], val);
             break;
+        }
         case SMSG_ENCODER_START:
         case SMSG_ENCODER_STOP:
             clearEnc(false);
@@ -166,14 +171,33 @@ void handlePacket(Packet *pkt)
         case SMSG_STOP:
         {
             StopAll(true);
-            Packet lock(CMSG_LOCKED, 0);
+            Packet lock(CMSG_LOCKED, 1);
+            lock.m_data[0] = 0;
             sendPacket(&lock);
             break;
         }
         case SMSG_UNLOCK:
             StartAll(true);
+#ifdef PING
+            pingTimer = PING_TIME;
+#endif
+            break;
+        case SMSG_CONNECT_REQ:
+            Packet res(CMSG_CONNECT_RES, 1);
+            res.m_data[0] = (state & STATE_LOCKED) ? 1 : 0;
+            sendPacket(&res);
+            state &= ~(STATE_PAUSED);
             break;
     }
+}
+
+inline void conLost()
+{
+    setMotorPower(0, 0);
+    clearEnc();
+    StopAll(true);
+    state &= ~(STATE_CORRECTION2);
+    state |= STATE_PAUSED;
 }
 
 inline void emergency(bool start)
@@ -192,7 +216,7 @@ inline void emergency(bool start)
         emergencySent = start;
     }
 
-    static uint8_t phase = 0;
+   /* static uint8_t phase = 0;
     if(start)
     {
         if (phase < 32)
@@ -208,7 +232,7 @@ inline void emergency(bool start)
         phase = (phase + 1) % 64;
     }
     else
-        clearLed();
+        clearLed();*/
 }
 
 void checkEncEvent(bool right)
@@ -217,13 +241,45 @@ void checkEncEvent(bool right)
     {
         if(enc_events[y].id == 0)
             continue;
-        if((enc_events[y].left != 0 || enc_events[y].left <= fabs(getLeftEnc())) && 
-            (enc_events[y].right != 0 || enc_events[y].right <= fabs(getRightEnc())))
+        if((enc_events[y].left != 0 && enc_events[y].left <= fabs(getLeftEnc())) ||
+            (enc_events[y].right != 0 && enc_events[y].right <= fabs(getRightEnc())) ||
+            (enc_events[y].left == 0 && enc_events[y].right == 0))
         {
+            cli();
             Packet encoder(CMSG_ENCODER_EVENT_DONE, 1);
             encoder.m_data[0] = enc_events[y].id;
-            sendPacket(&encoder);
             enc_events[y].id = 0;
+            sendPacket(&encoder);
+            moveflags = MOVE_NONE;
+            SetMovementByFlags();
+            sei();
         }
     }
+}
+
+ISR(PCINT0_vect)
+{
+    if((PINB & (1<<0)) != 0 || (state & STATE_BUTTON))
+        rightEnc();
+    else
+    {
+        if((state & STATE_BUTTON))
+            return;
+        cli();
+        state |= STATE_BUTTON;
+        Packet button(CMSG_BUTTON_STATUS, 2);
+        button.m_data[0] = BUTTON_PAWN;
+        button.m_data[1] = 0x01;
+        sendPacket(&button);
+        clean_buttons();
+        sei();
+    }
+}
+
+void StartMatch()
+{
+    Packet button(CMSG_BUTTON_STATUS, 2);
+    button.m_data[0] = BUTTON_START;
+    button.m_data[1] = 0x01;
+    sendPacket(&button);
 }
