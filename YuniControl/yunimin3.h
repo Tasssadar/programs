@@ -294,7 +294,7 @@ inline void stopRightServo()
     detail::stopRightServo();
 }
 
-inline void setServoPos(uint8_t left, uint8_t right)
+inline void setServoPos(int16_t left, int16_t right)
 {
     detail::setLeftServo(left);
     detail::setRightServo(right);
@@ -470,12 +470,12 @@ inline void stop_dc_motor()
 #define JUNIOR_VOLTAGE_SENSOR 6
 #define JUNIOR_VOLTAGE_THRESHOLD 700
 
-struct ground_sensors_t
+/*struct ground_sensors_t
 {
     uint16_t value[8];
-};
+};*/
 
-volatile struct ground_sensors_t g_sensors;
+//volatile struct ground_sensors_t g_sensors;
 uint16_t g_threshold = 512;
 
 //inline void begin_emergency();
@@ -495,7 +495,7 @@ ISR(ADC_vect)
 {
     static uint8_t currentSensor = 0;
     static bool initSensor = false;
-    static const uint8_t sensorMap[8] = { 5, 4, 0, 1, 2, 3, 6, 7 };
+    //static const uint8_t sensorMap[8] = { 5, 4, 0, 1, 2, 3, 6, 7 };
 
     if (initSensor)
     {
@@ -503,7 +503,7 @@ ISR(ADC_vect)
         uint8_t adch = ADCH;
 
         uint16_t value = (adch << 8) | (adcl);
-        g_sensors.value[sensorMap[currentSensor]] = value;
+        //g_sensors.value[sensorMap[currentSensor]] = value;
         if(currentSensor == 0 && checkForStart && value - g_threshold == 511)
         {
             checkForStart = false;
@@ -548,14 +548,14 @@ inline void init_indirect_sensors()
     DDRC |= (1<<0)|(1<<1)|(1<<2);
     DDRC &= ~(1<<3); 
     
-    g_sensors.value[0] = 1024;
+  /*  g_sensors.value[0] = 1024;
     g_sensors.value[1] = 1024;
     g_sensors.value[2] = 1024;
     g_sensors.value[3] = 1024;
     g_sensors.value[4] = 1024;
     g_sensors.value[5] = 1024;
     g_sensors.value[6] = 1024;
-    g_sensors.value[7] = 1024;
+    g_sensors.value[7] = 1024; */
 }
 
 inline void clean_indirect_sensors()
@@ -568,7 +568,7 @@ inline void stop_indirect_sensors()
 {
 }
 
-inline int16_t getSensorValue(uint8_t index)
+/*inline int16_t getSensorValue(uint8_t index)
 {
     cli();
     while (g_sensors.value[index] == 1024)
@@ -582,7 +582,7 @@ inline int16_t getSensorValue(uint8_t index)
     nop();
 
     return res;
-}
+} 
 
 inline void calibrate_sensors()
 {
@@ -592,7 +592,7 @@ inline void calibrate_sensors()
     avg += getSensorValue(3);
     
     g_threshold = (uint16_t) (avg / 4);
-}
+}*/
 
 #define JUNIOR_LED_PORT D
 #define JUNIOR_LED_PIN 7
@@ -623,21 +623,15 @@ inline void clean_single_led_power_off()
 
 inline void setLed()
 {
-    if (!g_emergency && !g_power_off)
-    {
-        JUNIOR_CONCAT(PORT, JUNIOR_LED_PORT) |= (1<<JUNIOR_LED_PIN);
-        JUNIOR_CONCAT(DDR , JUNIOR_LED_PORT) |= (1<<JUNIOR_LED_PIN);
-    }
+    JUNIOR_CONCAT(PORT, JUNIOR_LED_PORT) |= (1<<JUNIOR_LED_PIN);
+    JUNIOR_CONCAT(DDR , JUNIOR_LED_PORT) |= (1<<JUNIOR_LED_PIN);
     g_led_status = true;
 }
 
 inline void clearLed()
 {
-    if (!g_emergency && !g_power_off)
-    {
-        JUNIOR_CONCAT(DDR , JUNIOR_LED_PORT) &= ~(1<<JUNIOR_LED_PIN);
-        JUNIOR_CONCAT(PORT, JUNIOR_LED_PORT) |= (1<<JUNIOR_LED_PIN);
-    }
+    JUNIOR_CONCAT(DDR , JUNIOR_LED_PORT) &= ~(1<<JUNIOR_LED_PIN);
+    JUNIOR_CONCAT(PORT, JUNIOR_LED_PORT) |= (1<<JUNIOR_LED_PIN);
     g_led_status = false;
 }
 

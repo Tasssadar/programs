@@ -194,16 +194,17 @@ void handlePacket(Packet *pkt)
 inline void conLost()
 {
     setMotorPower(0, 0);
-    clearEnc();
+    //clearEnc();
     StopAll(true);
     state &= ~(STATE_CORRECTION2);
     state |= STATE_PAUSED;
 }
-
+/*
 inline void emergency(bool start)
 {
     if((start && g_emergency) || (!start && !g_emergency))
         return;
+    
     g_emergency = !g_emergency;
 
     if(sendEmergency && ((emergencySent && !start) || (getTickCount() - startTime >= (1000000 * JUNIOR_WAIT_MUL / JUNIOR_WAIT_DIV) && start)))
@@ -212,28 +213,9 @@ inline void emergency(bool start)
         emergency.m_opcode = start ? CMSG_EMERGENCY_START : CMSG_EMERGENCY_END;
         emergency.m_lenght = 0;
         sendPacket(&emergency);
-       // startTime = getTickCount();
         emergencySent = start;
     }
-
-   /* static uint8_t phase = 0;
-    if(start)
-    {
-        if (phase < 32)
-        {
-            JUNIOR_CONCAT(PORT, JUNIOR_LED_PORT) |= (1<<JUNIOR_LED_PIN);
-            JUNIOR_CONCAT(DDR , JUNIOR_LED_PORT) |= (1<<JUNIOR_LED_PIN);
-        }
-        else
-        {
-            JUNIOR_CONCAT(DDR , JUNIOR_LED_PORT) &= ~(1<<JUNIOR_LED_PIN);
-            JUNIOR_CONCAT(PORT, JUNIOR_LED_PORT) &= ~(1<<JUNIOR_LED_PIN);
-        }
-        phase = (phase + 1) % 64;
-    }
-    else
-        clearLed();*/
-}
+}*/
 
 void checkEncEvent(bool right)
 {

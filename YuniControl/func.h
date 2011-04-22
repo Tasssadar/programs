@@ -1,10 +1,11 @@
-#define FINDER_FRONT1    0xE0
 
 enum Buttons
 {
     BUTTON_START     = 0x01,
     BUTTON_PAWN      = 0x02
 };
+
+#define FINDER_FRONT1    0xE0
 
 inline uint16_t fabs(int16_t num)
 {

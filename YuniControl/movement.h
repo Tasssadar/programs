@@ -188,14 +188,16 @@ void setServoByFlags(uint8_t flags, int16_t val)
         setLeftServo(val);
     if(flags & SERVO_BRUSHES)
         setRightServo(val);
-//TODO
-//    if(flags & SERVO_REEL)
-//        startReel();
+
+    if(flags & SERVO_REEL)
+    {
+        setLed();
+        doReel = true;
+    }
 }
 
 void setEncEvent(uint8_t id, uint16_t left, uint16_t right)
 {
-   
     for(uint8_t y = 0; y < 5; ++y)
     {
         if(enc_events[y].id != 0)
@@ -213,9 +215,8 @@ void StopAll(bool lock)
 {
     if(lock)
         state |= STATE_LOCKED;
-    moveflags = MOVE_NONE;
-    SetMovementByFlags();  
-    
+    setMotorPower(0, 0);
+
     clean_single_led_power_off();
  //   clean_indirect_sensors();
     clean_dc_motor();
@@ -229,4 +230,5 @@ void StartAll(bool unlock)
     init_timer_servo();
     init_dc_motor();
    // init_indirect_sensors();
+   SetMovementByFlags();
 }

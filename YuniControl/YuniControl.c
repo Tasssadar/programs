@@ -29,9 +29,13 @@ bool emergencySent = false;
  #define PING_TIME ((700000) * JUNIOR_WAIT_MUL / JUNIOR_WAIT_DIV)
  uint32_t pingTimer = PING_TIME;
  uint32_t diff = 0;
+
  #define RANGE_TIME ((70000) * JUNIOR_WAIT_MUL / JUNIOR_WAIT_DIV)
  uint32_t rangeTimer = RANGE_TIME;
  bool checkRangeNow = false;
+
+ bool doReel = false;
+ uint32_t reelStopTimer = ((1500000) * JUNIOR_WAIT_MUL / JUNIOR_WAIT_DIV);
 #endif
 
 
@@ -43,7 +47,7 @@ void run()
 {
     state = 0;
     setLeftServo(-312);
-    setRightServo(0);
+    setRightServo(-20);
 
     while(true)
     {
@@ -85,6 +89,17 @@ void run()
             }
             else rangeTimer -= diff;
         }
+
+        if(doReel)
+        {
+            if(reelStopTimer <= diff)
+            {
+               doReel = false;
+               clearLed();
+            }
+            else reelStopTimer -= diff;
+        }
+   
         lastTime = thisTime;
 #endif
     }
