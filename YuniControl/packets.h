@@ -26,6 +26,9 @@ enum Opcodes
     SMSG_UNLOCK              = 0x24,
     SMSG_CONNECT_REQ         = 0x25,
     CMSG_CONNECT_RES         = 0x26,
+    SMSG_TEST                = 0x27,
+    CMSG_TEST_RESULT         = 0x28,
+    SMSG_ENCODER_RM_EVENT   = 0x29,
 };
 
 struct Packet
@@ -51,7 +54,7 @@ struct Packet
 void sendPacket(Packet *pkt)
 {
     rs232.sendCharacter(0xFF);
-    rs232.sendCharacter(0x01);
+    rs232.sendCharacter(MASTER_ADDRESS);
     rs232.sendCharacter(pkt->m_lenght);
     rs232.sendCharacter(pkt->m_opcode);
     rs232.sendBytes(pkt->m_data, pkt->m_lenght);
@@ -75,7 +78,7 @@ bool readPacket()
         return false;
     }
     
-    if(startItr && uint8_t(c) == 0x01)
+    if(startItr && uint8_t(c) == DEVICE_ADDRESS)
     {
         pktItr = 1;
         startItr = 0;
@@ -159,6 +162,11 @@ void handlePacket(Packet *pkt)
                 clearEnc(false);
             break;
         }
+        case SMSG_ENCODER_RM_EVENT:
+            removeEncEvent(pkt->m_data[0]);
+            if(pkt->m_data[1] == 1)
+                clearEnc(false);
+            break;
         case SMSG_ADD_STATE:
             state |= pkt->m_data[0];
             break;
@@ -183,11 +191,23 @@ void handlePacket(Packet *pkt)
 #endif
             break;
         case SMSG_CONNECT_REQ:
+        {
             Packet res(CMSG_CONNECT_RES, 1);
             res.m_data[0] = (state & STATE_LOCKED) ? 1 : 0;
             sendPacket(&res);
             state &= ~(STATE_PAUSED);
             break;
+        }
+        case SMSG_TEST:
+        {
+            Packet res(CMSG_TEST_RESULT, 5);
+            res.m_data[0] = uint8_t(isStartButtonPressed());
+            uint32_t result = test();
+            res.setUInt16((result >> 16), 1);
+            res.setUInt16((result & 0xFFFF), 3);
+            sendPacket(&res);
+            break;
+         }
     }
 }
 
@@ -202,7 +222,14 @@ inline void conLost()
 /*
 inline void emergency(bool start)
 {
-    if((start && g_emergency) || (!start && !g_emergency))
+    if((start && g_emergency) || (!star        if((state & STATE_BUTTON))
+            return;
+        state |= STATE_BUTTON;
+        Packet button(CMSG_BUTTON_STATUS, 2);
+        button.m_data[0] = BUTTON_PAWN;
+        button.m_data[1] = 0x01;
+        sendPacket(&button);
+        clean_buttons();t && !g_emergency))
         return;
     
     g_emergency = !g_emergency;
@@ -239,23 +266,16 @@ void checkEncEvent(bool right)
     }
 }
 
-ISR(PCINT0_vect)
+void discButton()
 {
-    if((PINB & (1<<0)) != 0 || (state & STATE_BUTTON))
-        rightEnc();
-    else
-    {
-        if((state & STATE_BUTTON))
-            return;
-        cli();
-        state |= STATE_BUTTON;
-        Packet button(CMSG_BUTTON_STATUS, 2);
-        button.m_data[0] = BUTTON_PAWN;
-        button.m_data[1] = 0x01;
-        sendPacket(&button);
-        clean_buttons();
-        sei();
-    }
+    if((state & STATE_BUTTON))
+        return;
+    state |= STATE_BUTTON;
+    Packet button(CMSG_BUTTON_STATUS, 2);
+    button.m_data[0] = BUTTON_PAWN;
+    button.m_data[1] = 0x01;
+    sendPacket(&button);
+    clean_buttons();
 }
 
 void StartMatch()

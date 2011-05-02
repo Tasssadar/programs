@@ -630,8 +630,9 @@ inline void setLed()
 
 inline void clearLed()
 {
-    JUNIOR_CONCAT(DDR , JUNIOR_LED_PORT) &= ~(1<<JUNIOR_LED_PIN);
-    JUNIOR_CONCAT(PORT, JUNIOR_LED_PORT) |= (1<<JUNIOR_LED_PIN);
+   // JUNIOR_CONCAT(DDR , JUNIOR_LED_PORT) &= ~(1<<JUNIOR_LED_PIN);
+     JUNIOR_CONCAT(DDR , JUNIOR_LED_PORT) |= (1<<JUNIOR_LED_PIN);
+    JUNIOR_CONCAT(PORT, JUNIOR_LED_PORT) &= ~(1<<JUNIOR_LED_PIN);
     g_led_status = false;
 }
 
@@ -1452,7 +1453,7 @@ inline bool isStartButtonPressed()
 inline void init_buttons()
 {
     PORTB |= (1<<0)|(1<<4);
-    PCMSK0 |= (1<<PCINT0)|(1<<PCINT4);
+   // PCMSK0 |= (1<<PCINT0)|(1<<PCINT4);
 }
 
 inline void clean_buttons()
@@ -1618,7 +1619,7 @@ public:
                        
 #define JUNIOR_ENCODER_RIGHT_PORT B
 #define JUNIOR_ENCODER_RIGHT_PCI 0
-#define JUNIOR_ENCODER_RIGHT_vect PCINT3_vect
+#define JUNIOR_ENCODER_RIGHT_vect PCINT0_vect
 #define JUNIOR_ENCODER_RIGHT_PIN1 5
 #define JUNIOR_ENCODER_RIGHT_PIN2 4
 /*

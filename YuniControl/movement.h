@@ -71,7 +71,7 @@ ISR(JUNIOR_ENCODER_LEFT_vect)
     checkEncEvent(false);
 }
 
-void rightEnc()
+ISR(PCINT0_vect)
 {
     uint8_t port = JUNIOR_CONCAT(PIN, JUNIOR_ENCODER_RIGHT_PORT);
     if (((port & (1<<JUNIOR_ENCODER_RIGHT_PIN1)) != 0) == ((port & (1<<JUNIOR_ENCODER_RIGHT_PIN2)) != 0))
@@ -110,7 +110,7 @@ inline void SetMovementByFlags()
         startTime = getTickCount();
         setMotorPower(0, 0);
         clearEnc();
-        state &= ~(STATE_CORRECTION2);
+        state &= ~(STATE_CORRECTION2); 
     }
     else if(moveflags & MOVE_FORWARD)
     {
@@ -180,6 +180,9 @@ void MovementCorrection()
     }
     else return;
     clearEnc();
+   // rs232.send("g ");
+   // rs232.dumpNumber(l);
+   // rs232.dumpNumber(r);
 }
 
 void setServoByFlags(uint8_t flags, int16_t val)
@@ -188,18 +191,22 @@ void setServoByFlags(uint8_t flags, int16_t val)
         setLeftServo(val);
     if(flags & SERVO_BRUSHES)
         setRightServo(val);
-
+#ifdef PING
     if(flags & SERVO_REEL)
     {
         setLed();
         doReel = true;
     }
+#endif
 }
 
 void setEncEvent(uint8_t id, uint16_t left, uint16_t right)
 {
     for(uint8_t y = 0; y < 5; ++y)
     {
+        if(enc_events[y].id == id)
+            return;
+
         if(enc_events[y].id != 0)
             continue;
         cli();
@@ -211,14 +218,28 @@ void setEncEvent(uint8_t id, uint16_t left, uint16_t right)
     }
 }
 
+void removeEncEvent(uint8_t id)
+{
+    for(uint8_t y = 0; y < 5; ++y)
+    {
+        if(enc_events[y].id == id)
+        {
+            cli();
+            enc_events[y].id = 0;
+            sei();
+            break;
+        }
+    }
+}
+
 void StopAll(bool lock)
 {
     if(lock)
         state |= STATE_LOCKED;
     setMotorPower(0, 0);
 
-    clean_single_led_power_off();
- //   clean_indirect_sensors();
+    clearLed();
+    clean_indirect_sensors();
     clean_dc_motor();
 }
 
@@ -232,3 +253,24 @@ void StartAll(bool unlock)
    // init_indirect_sensors();
    SetMovementByFlags();
 }
+
+uint32_t test()
+{
+    uint32_t encRes = 0;
+    setServoByFlags(SERVO_DOORS, 405);
+    setServoByFlags(SERVO_BRUSHES, 0);
+    setServoByFlags(SERVO_REEL, 1);
+    wait(1000000);
+    setServoByFlags(SERVO_DOORS, -312);
+    setServoByFlags(SERVO_BRUSHES, 690);
+
+    clearEnc(false);
+    setMotorPower(127, 127);
+    wait(800000);
+    setMotorPower(0, 0);
+    encRes = uint16_t(getLeftEnc() << 16);
+    encRes |= uint16_t(getRightEnc());
+    clearEnc(false);
+    return encRes;
+}
+

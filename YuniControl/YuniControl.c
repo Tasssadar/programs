@@ -1,3 +1,5 @@
+#define DEVICE_ADDRESS 0x01
+#define MASTER_ADDRESS 0xEF
 
 bool checkForStart = true;
 void StartMatch();
@@ -20,7 +22,7 @@ enum states
 
 #define RANGE_THRESHOLD  35
 
-volatile uint8_t state =0;
+volatile uint8_t state = 0;
 bool sendEmergency = false;
 bool emergencySent = false;
 #ifdef PING
@@ -47,7 +49,8 @@ void run()
 {
     state = 0;
     setLeftServo(-312);
-    setRightServo(-20);
+    setRightServo(690);
+    clearLed();
 
     while(true)
     {
@@ -59,6 +62,10 @@ void run()
 #ifdef PING
         if((state & STATE_PAUSED) || (state & STATE_LOCKED))
             continue;
+            
+        if(!(PINB & (1<<0)))
+            discButton();
+            
         thisTime = getTickCount();
         diff = (thisTime - lastTime);
         if(pingTimer <= diff)
@@ -96,6 +103,7 @@ void run()
             {
                doReel = false;
                clearLed();
+               reelStopTimer = ((1500000) * JUNIOR_WAIT_MUL / JUNIOR_WAIT_DIV);
             }
             else reelStopTimer -= diff;
         }
