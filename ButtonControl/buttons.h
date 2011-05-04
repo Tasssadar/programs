@@ -2,7 +2,7 @@ enum Buttons
 {
     BUTTON_START     = 0x01,
     BUTTON_PAWN      = 0x02,
-    BUTTON_LEFT      = 0x04,
+    BUTTON_FRONT     = 0x04,
     BUTTON_RIGHT     = 0x08,
     BUTTON_BACK_LEFT = 0x10,
     BUTTON_BACK_RIGHT= 0x20,
@@ -10,40 +10,67 @@ enum Buttons
 
 inline void init_buttons()
 {
-    PORTC = 0xFF;
-    PCMSK1 |= (1<<PCINT8)|(1<<PCINT9)|(1<<PCINT10)|(1<<PCINT11);
+    PORTC |= (1<<PC0);
+    PORTB |= (1<<PB1);
+    PORTD |= (1<<PD0);
+    PCICR |= (1<<PCIE1)|(1<<PCIE0)|(1<<PCIE2);
+    PCIFR |= (1<<PCIE1)|(1<<PCIE0)|(1<<PCIE2);
+    PCMSK2 |= (1<<PCINT16);
+    PCMSK1 |= (1<<PCINT8);
+    PCMSK0 |= (1<<PCINT1);
 }
 
 inline void clean_buttons()
 {
     PORTC = 0;
-    PCMSK1 &= ~((1<<PCINT8)|(1<<PCINT9)|(1<<PCINT10)|(1<<PCINT11));
+    PORTB = 0;
 }
-
+uint8_t pressedButtons = 0;
 inline void ButtonPressed(uint8_t address, bool pressed)
 {
+    
+    if((pressed && (pressedButtons & address)) || (!pressed && !(pressedButtons & address)))
+        return;
+    PORTD |= (1<<PD7);
+    
+    if(pressed)
+        pressedButtons |= address;
+    else
+        pressedButtons &= ~(address);
+    
+    if((pressedButtons & BUTTON_BACK_LEFT) && (pressedButtons & BUTTON_BACK_RIGHT))
+        address = (BUTTON_BACK_LEFT | BUTTON_BACK_RIGHT);
+    
     Packet pkt(CMSG_BUTTON_STATUS, 2);
     pkt.m_data[0] = address;
     pkt.m_data[1] = uint8_t(pressed);
     sendPacket(&pkt);
+    PORTD &= ~(1<<PD7);
 }
 
-ISR(PCINT8_vect)
+ISR(PCINT0_vect)
 {
-    ButtonPressed(BUTTON_LEFT, !(PINC & (1<<PC0)));
+    uint8_t status = (PINB & (1<<PB1));
+    _delay_ms(20);
+    if(status != (PINB & (1<<PB1)))
+        return;
+    ButtonPressed(BUTTON_BACK_LEFT, !(PINB & (1<<PB1)));
 }
 
-ISR(PCINT9_vect)
+ISR(PCINT1_vect)
 {
-    ButtonPressed(BUTTON_RIGHT, !(PINC & (1<<PC1)));
+    uint8_t status = (PINC & (1<<PC0));
+    _delay_ms(20);
+    if(status != (PINC & (1<<PC0)))
+        return;
+    ButtonPressed(BUTTON_BACK_RIGHT, !(PINC & (1<<PC0)));
 }
 
-ISR(PCINT10_vect)
+ISR(PCINT2_vect)
 {
-    ButtonPressed(BUTTON_BACK_LEFT, !(PINC & (1<<PC2)));
+    uint8_t status = (PIND & (1<<PD0));
+    _delay_ms(20);
+    if(status != (PIND & (1<<PD0)))
+        return;
+    ButtonPressed(BUTTON_FRONT, !(PIND & (1<<PD0)));
 }
-
-ISR(PCINT11_vect)
-{
-    ButtonPressed(BUTTON_BACK_RIGHT, !(PINC & (1<<PC3)));
-} 

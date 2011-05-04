@@ -109,28 +109,3 @@ void handlePacket(Packet *pkt)
             break;
     }
 }
-/*
-inline void emergency(bool start)
-{
-    if((start && g_emergency) || (!star        if((state & STATE_BUTTON))
-            return;
-        state |= STATE_BUTTON;
-        Packet button(CMSG_BUTTON_STATUS, 2);
-        button.m_data[0] = BUTTON_PAWN;
-        button.m_data[1] = 0x01;
-        sendPacket(&button);
-        clean_buttons();t && !g_emergency))
-        return;
-
-    g_emergency = !g_emergency;
-
-    if(sendEmergency && ((emergencySent && !start) || (getTickCount() - startTime >= (1000000 * JUNIOR_WAIT_MUL / JUNIOR_WAIT_DIV) && start)))
-    {
-        Packet emergency;
-        emergency.m_opcode = start ? CMSG_EMERGENCY_START : CMSG_EMERGENCY_END;
-        emergency.m_lenght = 0;
-        sendPacket(&emergency);
-        emergencySent = start;
-    }
-}*/
-

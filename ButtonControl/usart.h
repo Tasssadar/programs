@@ -281,7 +281,7 @@ ISR(JUNIOR_CONCAT(JUNIOR_RS232_SIGNAL, _RX_vect))
         else
             state = 0;
     }
-
+/*
     {
         static const unsigned char bootSeq[] = { 27, 91, 75 };
         static uint8_t state = 0;
@@ -296,7 +296,7 @@ ISR(JUNIOR_CONCAT(JUNIOR_RS232_SIGNAL, _RX_vect))
         }
         else
             state = 0;
-    }
+    }*/
 
     rs232.data_in(ch);
 }

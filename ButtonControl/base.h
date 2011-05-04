@@ -1,7 +1,8 @@
-#define JUNIOR_F_CPU 20000000
+#define JUNIOR_F_CPU 8000000
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
+#include <util/delay.h>
 #include <stdint.h>
 
 #define JUNIOR_RESET_SEQ() \

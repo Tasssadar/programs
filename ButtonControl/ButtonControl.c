@@ -10,6 +10,8 @@ inline void init()
 {
     init_rs232();
     init_buttons();
+    DDRD = 0xFF;
+    PORTD |= (1<<PD6);
 }
 
 inline void clean()
@@ -25,6 +27,9 @@ int main()
     
     while(true)
     {
+       //char ch;
+       //if(rs232.peek(ch))
+            //rs232.sendCharacter(ch);
         if(readPacket())
             handlePacket(&pkt);
     }
