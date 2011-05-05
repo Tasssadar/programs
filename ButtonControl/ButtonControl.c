@@ -10,7 +10,7 @@ inline void init()
 {
     init_rs232();
     init_buttons();
-    DDRD = 0xFF;
+    DDRD |= (1<<PD6)|(1<<PD7);
     PORTD |= (1<<PD6);
 }
 
@@ -27,11 +27,16 @@ int main()
     
     while(true)
     {
-       //char ch;
-       //if(rs232.peek(ch))
-            //rs232.sendCharacter(ch);
         if(readPacket())
             handlePacket(&pkt);
+        _delay_ms(10);
+        if(led)
+        {
+            if(ledCounter >= 10)
+                PORTD &= ~(1<<PD7);
+            else
+                ++ledCounter;
+        }
     }
     
     cli();

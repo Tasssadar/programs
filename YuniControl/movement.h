@@ -1,13 +1,5 @@
 #define TURN_VALUE 40
 
-enum moveFlags
-{
-    MOVE_NONE         = 0x00,
-    MOVE_FORWARD      = 0x01,
-    MOVE_BACKWARD     = 0x02,
-    MOVE_LEFT         = 0x04,
-    MOVE_RIGHT        = 0x08,
-};
 
 enum servoFlags
 {
@@ -23,7 +15,6 @@ struct EncoderEvent
     uint16_t right;
 };
 
-uint8_t moveflags;
 uint8_t speed;
 uint32_t startTime;
 uint8_t correction_treshold = 5;
@@ -150,6 +141,14 @@ inline void SetMovementByFlags()
         setMotorPower(speed, -speed);
         startTime = getTickCount();
     }
+   /* else if(moveflags & MOVE_LEFT_WHEEL)
+    {
+        setMotorPower(-speed, 0);
+    }
+    else if(moveflags & MOVE_RIGHT_WHEEL)
+    {
+        setMotorPower(0, -speed);
+    }*/
     else
     {
         startTime = getTickCount();

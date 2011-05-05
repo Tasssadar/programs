@@ -118,9 +118,12 @@ void handlePacket(Packet *pkt)
             sendPacket(&pong);
 #ifdef PING
             pingTimer = PING_TIME;
-            SendRangeReq();
-            rangeTimer = RANGE_TIME;
-            checkRangeNow = true;
+            if(moveflags == MOVE_FORWARD || moveflags ==MOVE_BACKWARD)
+            {
+                SendRangeReq();
+                rangeTimer = RANGE_TIME;
+                checkRangeNow = true;
+            }
 #endif
             break;
         }
@@ -246,6 +249,10 @@ inline void emergency(bool start)
 
 void checkEncEvent(bool right)
 {
+    cli();
+    moveCheckTimer = MOVE_CHECK_TIME;
+    sei();
+
     for(uint8_t y = 0; y < 5; ++y)
     {
         if(enc_events[y].id == 0)

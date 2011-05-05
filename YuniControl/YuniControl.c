@@ -28,16 +28,19 @@ bool emergencySent = false;
 #ifdef PING
  uint32_t lastTime = getTickCount();
  uint32_t thisTime = 0;
- #define PING_TIME ((700000) * JUNIOR_WAIT_MUL / JUNIOR_WAIT_DIV)
+ const uint32_t PING_TIME ((1000000) * JUNIOR_WAIT_MUL / JUNIOR_WAIT_DIV);
  uint32_t pingTimer = PING_TIME;
  uint32_t diff = 0;
 
- #define RANGE_TIME ((70000) * JUNIOR_WAIT_MUL / JUNIOR_WAIT_DIV)
+ const uint32_t RANGE_TIME ((70000) * JUNIOR_WAIT_MUL / JUNIOR_WAIT_DIV);
  uint32_t rangeTimer = RANGE_TIME;
  bool checkRangeNow = false;
 
  bool doReel = false;
- uint32_t reelStopTimer = ((1500000) * JUNIOR_WAIT_MUL / JUNIOR_WAIT_DIV);
+ uint32_t reelStopTimer = ((4500000) * JUNIOR_WAIT_MUL / JUNIOR_WAIT_DIV);
+
+ const uint32_t MOVE_CHECK_TIME ((2000000) * JUNIOR_WAIT_MUL / JUNIOR_WAIT_DIV);
+ uint32_t moveCheckTimer = MOVE_CHECK_TIME;
 #endif
 
 
@@ -106,6 +109,25 @@ void run()
                reelStopTimer = ((1500000) * JUNIOR_WAIT_MUL / JUNIOR_WAIT_DIV);
             }
             else reelStopTimer -= diff;
+        }
+
+        if(moveflags != MOVE_NONE)
+        {
+            if(moveCheckTimer <= diff)
+            {
+                for(uint8_t y = 0; y < 5; ++y)
+                {
+                    if(enc_events[y].id == 0)
+                        continue;
+                    Packet encoder(CMSG_ENCODER_EVENT_DONE, 1);
+                    encoder.m_data[0] = enc_events[y].id;
+                    enc_events[y].id = 0;
+                    sendPacket(&encoder);
+                    moveflags = MOVE_NONE;
+                    SetMovementByFlags();
+                }
+                moveCheckTimer = MOVE_CHECK_TIME;
+            }else moveCheckTimer -= diff;
         }
    
         lastTime = thisTime;

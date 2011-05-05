@@ -12,10 +12,10 @@ inline void init_buttons()
 {
     PORTC |= (1<<PC0);
     PORTB |= (1<<PB1);
-    PORTD |= (1<<PD0);
+    PORTD |= (1<<PD3);
     PCICR |= (1<<PCIE1)|(1<<PCIE0)|(1<<PCIE2);
     PCIFR |= (1<<PCIE1)|(1<<PCIE0)|(1<<PCIE2);
-    PCMSK2 |= (1<<PCINT16);
+    PCMSK2 |= (1<<PCINT19);
     PCMSK1 |= (1<<PCINT8);
     PCMSK0 |= (1<<PCINT1);
 }
@@ -26,6 +26,9 @@ inline void clean_buttons()
     PORTB = 0;
 }
 uint8_t pressedButtons = 0;
+bool led = false;
+uint8_t ledCounter = 0;
+
 inline void ButtonPressed(uint8_t address, bool pressed)
 {
     
@@ -45,7 +48,9 @@ inline void ButtonPressed(uint8_t address, bool pressed)
     pkt.m_data[0] = address;
     pkt.m_data[1] = uint8_t(pressed);
     sendPacket(&pkt);
-    PORTD &= ~(1<<PD7);
+    led = true;
+    ledCounter = 0;
+   // PORTD &= ~(1<<PD7);
 }
 
 ISR(PCINT0_vect)
@@ -68,9 +73,9 @@ ISR(PCINT1_vect)
 
 ISR(PCINT2_vect)
 {
-    uint8_t status = (PIND & (1<<PD0));
+    uint8_t status = (PIND & (1<<PD3));
     _delay_ms(20);
-    if(status != (PIND & (1<<PD0)))
+    if(status != (PIND & (1<<PD3)))
         return;
-    ButtonPressed(BUTTON_FRONT, !(PIND & (1<<PD0)));
+    ButtonPressed(BUTTON_FRONT, !(PIND & (1<<PD3)));
 }

@@ -5,6 +5,20 @@ enum Buttons
 };
 #define FINDER_FRONT1    0xE0
 
+enum moveFlags
+{
+    MOVE_NONE         = 0x00,
+    MOVE_FORWARD      = 0x01,
+    MOVE_BACKWARD     = 0x02,
+    MOVE_LEFT         = 0x04,
+    MOVE_RIGHT        = 0x08,
+    MOVE_LEFT_WHEEL   = 0x10,
+    MOVE_RIGHT_WHEEL  = 0x20,
+};
+uint8_t moveflags;
+const uint8_t finFor[] = {0xE0, 0xE8, 0xEA};
+const uint8_t backFor[] = {0xE2, 0xE4, 0xE6};
+
 inline uint16_t fabs(int16_t num)
 {
     if(num < 0)
@@ -14,11 +28,11 @@ inline uint16_t fabs(int16_t num)
 
 inline void SendRangeReq()
 {
-     uint8_t adr = FINDER_FRONT1;
+    // uint8_t adr = FINDER_FRONT1;
      uint8_t data [2] = { 0, 0x51 };
-     for(uint8_t i = 0; i < 6; ++i, adr +=2)
+     for(uint8_t i = 0; i < 3; ++i)
      {
-         i2c.write(adr, &data[0], 2);
+         i2c.write(moveflags ==MOVE_FORWARD ? finFor[i] : backFor[i], &data[0], 2);
          if(i2c.get_result().result != 2)
             continue;
      }
@@ -46,10 +60,10 @@ inline uint16_t ReadRange(uint8_t adress)//, uint8_t method = RANGE_CENTIMETRES)
 
 bool checkRange()
 {
-    uint8_t adr = FINDER_FRONT1;
-    for(uint8_t i = 0; i < 6; ++i, adr +=2)
+    //uint8_t adr = FINDER_FRONT1;
+    for(uint8_t i = 0; i < 3; ++i)
     {
-        if(ReadRange(adr) <= RANGE_THRESHOLD)
+        if(ReadRange(moveflags ==MOVE_FORWARD ? finFor[i] : backFor[i]) <= RANGE_THRESHOLD)
             return true;
     }
     return false;
