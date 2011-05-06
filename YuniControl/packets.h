@@ -1,55 +1,4 @@
-enum Opcodes
-{
-    SMSG_PING                = 0x01,
-    CMSG_PONG                = 0x02,
-    SMSG_SET_MOVEMENT        = 0x03,
-    SMSG_SET_CORRECTION_VAL  = 0x04,
-    CMSG_RANGE_BLOCK         = 0x05,
-    CMSG_RANGE_BLOCK_GONE    = 0x06,
-    CMSG_EMERGENCY_START     = 0x07,
-    CMSG_EMERGENCY_END       = 0x08,
-    SMSG_SET_EMERGENCY_INFO  = 0x09,
-    SMSG_SET_SERVO_VAL       = 0x10,
-    SMSG_ENCODER_START       = 0x11,
-    SMSG_ENCODER_GET         = 0x12,
-    CMSG_ENCODER_SEND        = 0x13,
-    SMSG_ENCODER_STOP        = 0x14,
-    SMSG_ENCODER_SET_EVENT   = 0x15,
-    CMSG_ENCODER_EVENT_DONE  = 0x16,
-    CMSG_LASER_GATE_STAT     = 0x17,
-    SMSG_LASER_GATE_SET      = 0x18,
-    CMSG_BUTTON_STATUS       = 0x19,
-    SMSG_ADD_STATE           = 0x20,
-    SMSG_REMOVE_STATE        = 0x21,
-    SMSG_STOP                = 0x22,
-    CMSG_LOCKED              = 0x23,
-    SMSG_UNLOCK              = 0x24,
-    SMSG_CONNECT_REQ         = 0x25,
-    CMSG_CONNECT_RES         = 0x26,
-    SMSG_TEST                = 0x27,
-    CMSG_TEST_RESULT         = 0x28,
-    SMSG_ENCODER_RM_EVENT   = 0x29,
-};
 
-struct Packet
-{
-    Packet(uint8_t opcode = 0, uint8_t lenght = 0)
-    {
-        m_opcode = opcode;
-        m_lenght = lenght;
-    }
-
-    uint8_t m_opcode;
-    uint8_t m_lenght;
-    uint8_t m_data[10];
-
-    uint16_t readUInt16(uint8_t index) const { return ((m_data[index] << 8) | (m_data[index+1] & 0xFF)); }
-    void setUInt16(uint8_t index, uint16_t val)
-    {
-        m_data[index] = uint8_t(val >> 8);
-        m_data[index+1] = uint8_t(val & 0xFF);
-    }
-};
 
 void sendPacket(Packet *pkt)
 {
@@ -118,11 +67,10 @@ void handlePacket(Packet *pkt)
             sendPacket(&pong);
 #ifdef PING
             pingTimer = PING_TIME;
-            if(moveflags == MOVE_FORWARD || moveflags ==MOVE_BACKWARD)
+             if(checkRange && rangeLastAdr == 0)
             {
+                rangeLastAdr = FINDER_FRONT1;
                 SendRangeReq();
-                rangeTimer = RANGE_TIME;
-                checkRangeNow = true;
             }
 #endif
             break;
@@ -206,11 +154,14 @@ void handlePacket(Packet *pkt)
             Packet res(CMSG_TEST_RESULT, 5);
             res.m_data[0] = uint8_t(isStartButtonPressed());
             uint32_t result = test();
-            res.setUInt16((result >> 16), 1);
-            res.setUInt16((result & 0xFFFF), 3);
+            res.setUInt16(1, (result >> 16));
+            res.setUInt16(3, (result & 0xFFFF));
             sendPacket(&res);
             break;
          }
+        case SMSG_SHUTDOWN_RANGE:
+            checkRange = false;
+            break;
     }
 }
 
@@ -222,30 +173,6 @@ inline void conLost()
     state &= ~(STATE_CORRECTION2);
     state |= STATE_PAUSED;
 }
-/*
-inline void emergency(bool start)
-{
-    if((start && g_emergency) || (!star        if((state & STATE_BUTTON))
-            return;
-        state |= STATE_BUTTON;
-        Packet button(CMSG_BUTTON_STATUS, 2);
-        button.m_data[0] = BUTTON_PAWN;
-        button.m_data[1] = 0x01;
-        sendPacket(&button);
-        clean_buttons();t && !g_emergency))
-        return;
-    
-    g_emergency = !g_emergency;
-
-    if(sendEmergency && ((emergencySent && !start) || (getTickCount() - startTime >= (1000000 * JUNIOR_WAIT_MUL / JUNIOR_WAIT_DIV) && start)))
-    {
-        Packet emergency;
-        emergency.m_opcode = start ? CMSG_EMERGENCY_START : CMSG_EMERGENCY_END;
-        emergency.m_lenght = 0;
-        sendPacket(&emergency);
-        emergencySent = start;
-    }
-}*/
 
 void checkEncEvent(bool right)
 {

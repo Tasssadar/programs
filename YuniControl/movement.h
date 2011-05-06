@@ -1,6 +1,5 @@
 #define TURN_VALUE 40
 
-
 enum servoFlags
 {
     SERVO_DOORS        = 0x01,
@@ -96,14 +95,20 @@ void clearEnc(bool correction = true)
 
 inline void SetMovementByFlags()
 {
+    
     if(moveflags == MOVE_NONE)
     {
         startTime = getTickCount();
         setMotorPower(0, 0);
         clearEnc();
-        state &= ~(STATE_CORRECTION2); 
+        state &= ~(STATE_CORRECTION2);
+        return;
     }
-    else if(moveflags & MOVE_FORWARD)
+
+    if((state & STATE_COLLISION))
+        return;
+    
+    if(moveflags & MOVE_FORWARD)
     {
         if(moveflags & MOVE_LEFT)
             setMotorPower(speed-TURN_VALUE, speed);
@@ -193,6 +198,7 @@ void setServoByFlags(uint8_t flags, int16_t val)
 #ifdef PING
     if(flags & SERVO_REEL)
     {
+        checkRange = false; 
         setLed();
         doReel = true;
     }
@@ -258,8 +264,9 @@ uint32_t test()
     uint32_t encRes = 0;
     setServoByFlags(SERVO_DOORS, 405);
     setServoByFlags(SERVO_BRUSHES, 0);
-    setServoByFlags(SERVO_REEL, 1);
+    setLed();
     wait(1000000);
+    clearLed();
     setServoByFlags(SERVO_DOORS, -312);
     setServoByFlags(SERVO_BRUSHES, 690);
 

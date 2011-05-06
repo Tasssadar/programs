@@ -20,8 +20,9 @@ enum states
     STATE_PAUSED      = 0x80,
 };
 
-#define RANGE_THRESHOLD  35
+#define RANGE_THRESHOLD  45
 
+bool checkRange = true;
 volatile uint8_t state = 0;
 bool sendEmergency = false;
 bool emergencySent = false;
@@ -35,9 +36,10 @@ bool emergencySent = false;
  const uint32_t RANGE_TIME ((70000) * JUNIOR_WAIT_MUL / JUNIOR_WAIT_DIV);
  uint32_t rangeTimer = RANGE_TIME;
  bool checkRangeNow = false;
+ uint8_t rangeTry = 0;
 
  bool doReel = false;
- uint32_t reelStopTimer = ((4500000) * JUNIOR_WAIT_MUL / JUNIOR_WAIT_DIV);
+ uint32_t reelStopTimer = ((6000000) * JUNIOR_WAIT_MUL / JUNIOR_WAIT_DIV);
 
  const uint32_t MOVE_CHECK_TIME ((2000000) * JUNIOR_WAIT_MUL / JUNIOR_WAIT_DIV);
  uint32_t moveCheckTimer = MOVE_CHECK_TIME;
@@ -51,7 +53,7 @@ bool emergencySent = false;
 void run()
 {
     state = 0;
-    setLeftServo(-312);
+    setLeftServo(-422);
     setRightServo(690);
     clearLed();
 
@@ -79,7 +81,9 @@ void run()
         {
             if(rangeTimer <= diff)
             {
-                bool collision = checkRange();
+                rangeTimer = RANGE_TIME;
+                checkRangeNow = false;
+                bool collision = checkRangeFunc();
                 if(collision && !(state & STATE_COLLISION))
                 {
                     state |= STATE_COLLISION;
@@ -89,13 +93,18 @@ void run()
                 }
                 else if(!collision && (state & STATE_COLLISION))
                 {
-                    state &= ~(STATE_COLLISION);
-                    SetMovementByFlags();
-                    Packet col(CMSG_RANGE_BLOCK_GONE);
-                    sendPacket(&col);
+                    if(rangeTry >= 50)
+                    { 
+                        state &= ~(STATE_COLLISION);
+                        Packet col(CMSG_RANGE_BLOCK_GONE);
+                        sendPacket(&col);
+                        SetMovementByFlags();
+                    }
                 }
-                rangeTimer = RANGE_TIME;
-                checkRangeNow = false;
+                if(!collision && (state & STATE_COLLISION));
+                    ++rangeTry;
+                if(collision)
+                    rangeTry = 0;
             }
             else rangeTimer -= diff;
         }
@@ -111,10 +120,12 @@ void run()
             else reelStopTimer -= diff;
         }
 
-        if(moveflags != MOVE_NONE)
+        if(moveflags != MOVE_NONE && !(state & STATE_COLLISION))
         {
             if(moveCheckTimer <= diff)
             {
+                Packet dead(CMSG_DEADEND_DETECTED, 0);
+                sendPacket(&dead);
                 for(uint8_t y = 0; y < 5; ++y)
                 {
                     if(enc_events[y].id == 0)
