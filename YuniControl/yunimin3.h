@@ -18,10 +18,6 @@
 #ifndef JUNIOR_H_AVR
 #define JUNIOR_H_AVR
 
-#include <avr/io.h>
-#include <avr/interrupt.h>
-#include <stdint.h>
-
 #ifdef JUNIOR_ON_IDLE
 #define JUNIOR_DO_IDLE() JUNIOR_ON_IDLE()
 #else
@@ -421,6 +417,7 @@ inline void stopRightMotor()
 
 inline void setMotorPower(int8_t left, int8_t right)
 {
+    sendPowerReq(uint8_t(fabs(left)), uint8_t(fabs(right)));
     setLeftMotor(left);
     setRightMotor(right);
 }

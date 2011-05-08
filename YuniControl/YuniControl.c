@@ -1,9 +1,20 @@
 #define DEVICE_ADDRESS 0x01
 #define MASTER_ADDRESS 0xEF
 
+#include <avr/io.h>
+#include <avr/interrupt.h>
+#include <stdint.h>
+
 bool checkForStart = true;
 void StartMatch();
+void sendPowerReq(uint8_t, uint8_t);
 
+inline uint16_t fabs(int16_t num)
+{
+    if(num < 0)
+        return -num;
+    return num;
+}
 #include "yunimin3.h"
 
 #define PING 1
@@ -22,7 +33,7 @@ enum states
 
 #define RANGE_THRESHOLD  45
 
-bool checkRange = true;
+volatile bool checkRange = true;
 volatile uint8_t state = 0;
 bool sendEmergency = false;
 bool emergencySent = false;
@@ -30,19 +41,19 @@ bool emergencySent = false;
  uint32_t lastTime = getTickCount();
  uint32_t thisTime = 0;
  const uint32_t PING_TIME ((1000000) * JUNIOR_WAIT_MUL / JUNIOR_WAIT_DIV);
- uint32_t pingTimer = PING_TIME;
+ volatile uint32_t pingTimer = PING_TIME;
  uint32_t diff = 0;
 
  const uint32_t RANGE_TIME ((70000) * JUNIOR_WAIT_MUL / JUNIOR_WAIT_DIV);
- uint32_t rangeTimer = RANGE_TIME;
- bool checkRangeNow = false;
+ volatile uint32_t rangeTimer = RANGE_TIME;
+ volatile bool checkRangeNow = false;
  uint8_t rangeTry = 0;
 
  bool doReel = false;
  uint32_t reelStopTimer = ((6000000) * JUNIOR_WAIT_MUL / JUNIOR_WAIT_DIV);
 
  const uint32_t MOVE_CHECK_TIME ((2000000) * JUNIOR_WAIT_MUL / JUNIOR_WAIT_DIV);
- uint32_t moveCheckTimer = MOVE_CHECK_TIME;
+ volatile uint32_t moveCheckTimer = MOVE_CHECK_TIME;
 #endif
 
 
@@ -59,7 +70,7 @@ void run()
 
     while(true)
     {
-        if(moveflags == MOVE_FORWARD || moveflags == MOVE_BACKWARD)
+        if(!(state & STATE_COLLISION) && (moveflags == MOVE_FORWARD || moveflags == MOVE_BACKWARD))
             MovementCorrection();
 
         if(readPacket())
@@ -77,7 +88,7 @@ void run()
             conLost();
         else pingTimer -= diff;
 
-        if(checkRangeNow)
+        if(checkRangeNow && checkRange)
         {
             if(rangeTimer <= diff)
             {
@@ -88,6 +99,7 @@ void run()
                 {
                     state |= STATE_COLLISION;
                     setMotorPower(0, 0);
+                    //clean_dc_motor();
                     Packet col(CMSG_RANGE_BLOCK);
                     sendPacket(&col);
                 }
@@ -96,8 +108,10 @@ void run()
                     if(rangeTry >= 50)
                     { 
                         state &= ~(STATE_COLLISION);
+                        moveCheckTimer = MOVE_CHECK_TIME;
                         Packet col(CMSG_RANGE_BLOCK_GONE);
                         sendPacket(&col);
+                        //init_dc_motor();
                         SetMovementByFlags();
                     }
                 }

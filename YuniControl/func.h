@@ -40,6 +40,10 @@ enum Opcodes
     CMSG_RANGE_VALUE        = 0x30,
     SMSG_SHUTDOWN_RANGE     = 0x31,
     CMSG_DEADEND_DETECTED   = 0x32,
+    CMSG_SET_POWER_REQ      = 0x33,
+    CMSG_RANGE_ADDR_EMPTY    = 0x34,
+    SMSG_SET_RANGE_ADDR      = 0x35,
+    SMSG_TEST_RANGE          = 0x36,
 };
 
 struct Packet
@@ -62,7 +66,7 @@ struct Packet
     }
 };
 void sendPacket(Packet *pkt);
-uint8_t rangeLastAdr = 0;
+volatile uint8_t rangeLastAdr = 0;
 enum moveFlags
 {
     MOVE_NONE         = 0x00,
@@ -73,14 +77,9 @@ enum moveFlags
     MOVE_LEFT_WHEEL   = 0x10,
     MOVE_RIGHT_WHEEL  = 0x20,
 };
-uint8_t moveflags;
+volatile uint8_t moveflags;
 
-inline uint16_t fabs(int16_t num)
-{
-    if(num < 0)
-        return -num;
-    return num;
-}
+
 
 inline void SendRangeReq()
 {
@@ -112,6 +111,26 @@ inline uint16_t ReadRange(uint8_t adress)//, uint8_t method = RANGE_CENTIMETRES)
     return range;
 }
 
+inline uint16_t GetMinRange(uint8_t adr)
+{
+    uint16_t result = 0;
+    i2c.write(adr, 0x04);
+    if(i2c.get_result().result != 1)
+        return 0;
+    i2c.read(adr, 1);
+    i2c.get_result();
+    result = (8 << TWDR);
+    i2c.write(adr, 0x05);
+    if(i2c.get_result().result != 1)
+        return 0;
+    i2c.read(adr, 1);
+    i2c.get_result();
+    result |= TWDR;
+    clean_i2c();
+    i2c.clear();
+    return result;
+}
+
 bool checkRangeFunc()
 {
     Packet pkt(CMSG_RANGE_VALUE, 3);
@@ -121,9 +140,12 @@ bool checkRangeFunc()
     pkt.m_data[0] = rangeLastAdr;
     pkt.setUInt16(1, range);
     sendPacket(&pkt);
-    if(range <= RANGE_THRESHOLD)
+    if(range != 8 && range <= RANGE_THRESHOLD)
         pass = true;
-    rangeLastAdr +=2;
+    if(rangeLastAdr != 0xF8)
+        rangeLastAdr +=2;
+    else
+        rangeLastAdr = 0xE2;
     if(rangeLastAdr <= 0xE8)
         SendRangeReq();
     else

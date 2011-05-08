@@ -3,7 +3,7 @@ enum Buttons
     BUTTON_START     = 0x01,
     BUTTON_PAWN      = 0x02,
     BUTTON_FRONT     = 0x04,
-    BUTTON_RIGHT     = 0x08,
+    BUTTON_PAWS      = 0x08,
     BUTTON_BACK_LEFT = 0x10,
     BUTTON_BACK_RIGHT= 0x20,
 };
@@ -59,7 +59,7 @@ ISR(PCINT0_vect)
     _delay_ms(20);
     if(status != (PINB & (1<<PB1)))
         return;
-    ButtonPressed(BUTTON_BACK_LEFT, !(PINB & (1<<PB1)));
+    ButtonPressed(BUTTON_PAWS, !(PINB & (1<<PB1)));
 }
 
 ISR(PCINT1_vect)

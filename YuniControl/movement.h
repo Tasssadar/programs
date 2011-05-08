@@ -14,10 +14,10 @@ struct EncoderEvent
     uint16_t right;
 };
 
-uint8_t speed;
-uint32_t startTime;
+volatile uint8_t speed;
+volatile uint32_t startTime;
 uint8_t correction_treshold = 5;
-EncoderEvent enc_events[5];
+volatile EncoderEvent enc_events[5];
 
 volatile int32_t g_left_encoder = 0;
 volatile int32_t g_right_encoder = 0;
@@ -256,7 +256,8 @@ void StartAll(bool unlock)
     init_timer_servo();
     init_dc_motor();
    // init_indirect_sensors();
-   SetMovementByFlags();
+    if(!(state & STATE_COLLISION))
+        SetMovementByFlags();
 }
 
 uint32_t test()
@@ -266,15 +267,17 @@ uint32_t test()
     setServoByFlags(SERVO_BRUSHES, 0);
     setLed();
     wait(1000000);
+    pingTimer = PING_TIME;
     clearLed();
     setServoByFlags(SERVO_DOORS, -312);
     setServoByFlags(SERVO_BRUSHES, 690);
 
     clearEnc(false);
     setMotorPower(127, 127);
-    wait(800000);
+    wait(1000000);
+    pingTimer = PING_TIME;
     setMotorPower(0, 0);
-    encRes = uint16_t(getLeftEnc() << 16);
+    encRes = (getLeftEnc() << 16);
     encRes |= uint16_t(getRightEnc());
     clearEnc(false);
     return encRes;

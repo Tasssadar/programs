@@ -67,9 +67,9 @@ void handlePacket(Packet *pkt)
             sendPacket(&pong);
 #ifdef PING
             pingTimer = PING_TIME;
-             if(checkRange && rangeLastAdr == 0)
+            if(checkRange && rangeLastAdr == 0)
             {
-                rangeLastAdr = FINDER_FRONT1;
+                rangeLastAdr = 0xF8;
                 SendRangeReq();
             }
 #endif
@@ -161,7 +161,36 @@ void handlePacket(Packet *pkt)
          }
         case SMSG_SHUTDOWN_RANGE:
             checkRange = false;
+            state &= ~(STATE_COLLISION);
             break;
+        case SMSG_TEST_RANGE:
+        {
+            uint8_t adr = FINDER_FRONT1;
+            for(uint8_t i = 0; i < 5; ++i, adr += 2)
+            {
+                if(GetMinRange(adr) > 200)
+                {
+                    Packet pkt(CMSG_RANGE_ADDR_EMPTY, 1);
+                    pkt.m_data[0] = adr;
+                    sendPacket(&pkt);
+                    break;
+                }
+            }
+            break;
+        }
+        case SMSG_SET_RANGE_ADDR:
+        {
+            uint8_t data[4] = { 0xA0, 0xAA, 0xA5, pkt->m_data[0] };
+            for(uint8_t i = 0; i < 4; ++i)
+            {
+                uint8_t dataS [2] = { 0, data[i] };
+                i2c.write(0xE0, &dataS[0], 2);
+                i2c.get_result();
+            }
+            clean_i2c();
+            i2c.clear();
+            break;
+        }
     }
 }
 
@@ -176,9 +205,7 @@ inline void conLost()
 
 void checkEncEvent(bool right)
 {
-    cli();
     moveCheckTimer = MOVE_CHECK_TIME;
-    sei();
 
     for(uint8_t y = 0; y < 5; ++y)
     {
@@ -218,4 +245,12 @@ void StartMatch()
     button.m_data[0] = BUTTON_START;
     button.m_data[1] = 0x01;
     sendPacket(&button);
+}
+
+void sendPowerReq(uint8_t left, uint8_t right)
+{
+    Packet pkt(CMSG_SET_POWER_REQ, 2);
+    pkt.m_data[0] = left;
+    pkt.m_data[1] = right;
+    sendPacket(&pkt);
 }
