@@ -72,8 +72,13 @@ void setLeftMotor(int speed);
 void clean();
 #endif
 
+void setMotorPower(int16_t left, int16_t right);
+
 inline void force_wd_reset()
 {
+    //TODO: THIS SHOULD NOT BE HERE, BUT BOOTLOADER WONT STOP PWM ON 3PI
+    setMotorPower(0, 0);
+    
     cli();
 #if defined(WDTCR)
     WDTCR = (1<<WDCE)|(1<<WDE);
@@ -400,6 +405,8 @@ void init_motors()
 void setRightMotor(int16_t speed)
 {
     unsigned char reverse = 0;
+    //TODO: I think front is the part with display, but IR sensors are on opposite side.
+    // comment this if you need
     speed *= -1;
 	if (speed < 0)
 	{
@@ -424,6 +431,8 @@ void setRightMotor(int16_t speed)
 void setLeftMotor(int16_t speed)
 {
     unsigned char reverse = 0;
+    //TODO: I think front is the part with display, but IR sensors are on opposite side.
+    // comment this if you need
     speed *= -1;
 	if (speed < 0)
 	{
