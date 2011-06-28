@@ -23,7 +23,8 @@ struct Packet
     uint8_t m_lenght;
     uint8_t m_data[10];
 
-    int16_t readInt16(uint8_t index) const { return ((m_data[index] << 8) | m_data[index+1]); }
+    int16_t readInt16(uint8_t index) const { return ((((int8_t)m_data[index]) << 8) | m_data[index+1]); }
+    uint16_t readUInt16(uint8_t index) const { return ((m_data[index] << 8) | m_data[index+1]); }
     void setUInt16(uint8_t index, uint16_t val)
     {
         m_data[index] = uint8_t(val >> 8);
@@ -43,7 +44,7 @@ bool readPacket()
     if(!rs232.peek(c))
         return false;
 
-    if(!startItr && uint8_t(c) == 0xFF)
+    if(!startItr && !pktItr && uint8_t(c) == 0xFF)
     {
         startItr = 1;
         return false;
@@ -55,7 +56,7 @@ bool readPacket()
         startItr = 0;
     }
     else if(pktItr == 2)
-        pkt.m_lenght = uint8_t(c);
+        pkt.m_lenght = uint8_t(c)-1;
     else if(pktItr == 3)
         pkt.m_opcode = uint8_t(c);
     else if(pktItr >= 4 && pktItr < pkt.m_lenght+4)
@@ -78,53 +79,9 @@ void handlePacket(Packet *pkt)
 {
     switch(pkt->m_opcode)
     {
-        case 0x03:
-            speed = pkt->m_data[0]*2;
-            moveflags = pkt->m_data[1];
-            SetMovementByFlags();
+        case 4:
+            setRightMotor(pkt->readInt16(0));
+            setLeftMotor(pkt->readInt16(2));
             break;
     }
 }
-
-inline void SetMovementByFlags()
-{
-
-    if(moveflags == MOVE_NONE)
-    {
-        setMotorPower(0, 0);
-        return;
-    }
-    else if(moveflags & MOVE_FORWARD)
-    {
-        if(moveflags & MOVE_LEFT)
-            setMotorPower(speed-TURN_VALUE, speed);
-        else if(moveflags & MOVE_RIGHT)
-            setMotorPower(speed, speed-TURN_VALUE);
-        else
-            setMotorPower(speed, speed);
-    }
-    else if(moveflags & MOVE_BACKWARD)
-    {
-        if(moveflags & MOVE_LEFT)
-            setMotorPower(-(speed-TURN_VALUE), -speed);
-        else if(moveflags & MOVE_RIGHT)
-            setMotorPower(-speed, -(speed-TURN_VALUE));
-        else
-            setMotorPower(-speed, -speed);
-    }
-    else if(moveflags & MOVE_LEFT)
-        setMotorPower(-speed, speed);
-    else if(moveflags & MOVE_RIGHT)
-        setMotorPower(speed, -speed);
-   /* else if(moveflags & MOVE_LEFT_WHEEL)
-    {
-        setMotorPower(-speed, 0);
-    }
-    else if(moveflags & MOVE_RIGHT_WHEEL)
-    {
-        setMotorPower(0, -speed);
-    }*/
-    else
-        setMotorPower(0, 0);
-}
-
