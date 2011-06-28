@@ -1,17 +1,24 @@
-#ifndef PI_JUNIOR_LIB
-#define PI_JUNIOR_LIB
+#define PI_LIB_VERSION 1
 
-//#include <pololu/orangutan>
-//#include <pololu/Pololu3pi.h>
+#ifndef PI_LIB_COMMON
+#define PI_LIB_COMMON
 
-#include <pololu/orangutan.h>
-#include <pololu/3pi.h>
-//#include <pololu/qrt.h>
-#include <pololu/encoders.h>
+#define JUNIOR_F_CPU 20000000
 
-void setLeftMotor(int speed);
-#ifndef JUNIOR_H_COMMON
-#define JUNIOR_H_COMMON
+#include <avr/io.h>
+#include <avr/interrupt.h>
+#include <stdint.h>
+
+#ifdef JUNIOR_ON_IDLE
+#define JUNIOR_DO_IDLE() JUNIOR_ON_IDLE()
+#else
+#define JUNIOR_DO_IDLE()
+#endif
+
+inline void nop()
+{
+    asm volatile ("nop");
+}
 
 #ifndef __cplusplus
 # error Nezapomente si v nastaveni AVR studia zapnout "-x c++" !
@@ -38,22 +45,117 @@ void setLeftMotor(int speed);
 
 #endif
 
-#ifdef JUNIOR_ON_IDLE
-#define JUNIOR_DO_IDLE() JUNIOR_ON_IDLE()
-#else
-#define JUNIOR_DO_IDLE()
+#ifndef PI_LIB_TIME
+#define PI_LIB_TIME
+
+// TODO
+
 #endif
+
+#ifndef PI_LIB_MOTORS
+#define PI_LIB_MOTORS
+
+void init_motors()
+{
+    // configure for inverted fast PWM output on motor control pins:
+    //  set OCxx on compare match, clear on timer overflow
+    //  Timer0 and Timer2 counts up from 0 to 255 and then overflows directly to 0
+    TCCR0A = TCCR2A = 0xF3;
+
+    // use the system clock/8 (=2.5 MHz) as the timer clock,
+    // which will produce a PWM frequency of 10 kHz
+    TCCR0B = TCCR2B = 0x02;
+
+    // use the system clock (=20 MHz) as the timer clock,
+    // which will produce a PWM frequency of 78 kHz.  The Baby Orangutan B
+    // and 3Pi can support PWM frequencies this high.  The
+    // Orangutan LV-168 cannot support frequencies above 10 kHz.
+    //TCCR0B = TCCR2B = 0x01;
+
+    // initialize all PWMs to 0% duty cycle (braking)
+    OCR0A = OCR0B = OCR2A = OCR2B = 0;
+
+    DDRD |= (1 << PIN5) | (1 << PIN6)| (1 << PIN3);
+    DDRB |= (1 << PIN3);
+    PORTD &= ~(1 << PIN5);
+    PORTD &= ~(1 << PIN6);
+    PORTD &= ~(1 << PIN3);
+    PORTB &= ~(1 << PIN3);
+
+}
+
+void clean_motors()
+{
+    TCCR0A = 0;
+    TCCR2A = 0;
+    TCCR0B = 0;
+    TCCR2B = 0;
+}
+
+void setLeftMotor(int16_t speed)
+{
+    unsigned char reverse = 0;
+    if (speed < 0)
+    {
+        speed = -speed; // make speed a positive quantity
+        reverse = 1;    // preserve the direction
+    }
+    if (speed > 0xFF)   // 0xFF = 255
+        speed = 0xFF;
+
+    if (reverse)
+    {
+        OCR0B = 0;      // hold one driver input high
+        OCR0A = speed;  // pwm the other input
+    }
+    else    // forward
+    {
+        OCR0B = speed;  // pwm one driver input
+        OCR0A = 0;      // hold the other driver input high
+    }
+}
+
+void setRightMotor(int16_t speed)
+{
+    unsigned char reverse = 0;
+    if (speed < 0)
+    {
+        speed = -speed; // make speed a positive quantity
+        reverse = 1;    // preserve the direction
+    }
+    if (speed > 0xFF)   // 0xFF = 255
+        speed = 0xFF;
+
+    if (reverse)
+    {
+        OCR2B = 0;      // hold one driver input high
+        OCR2A = speed;  // pwm the other input
+    }
+    else    // forward
+    {
+        OCR2B = speed;  // pwm one driver input
+        OCR2A = 0;      // hold the other driver input high
+    }
+}
+
+void setMotorPower(int16_t left, int16_t right)
+{
+    setLeftMotor(left);
+    setRightMotor(right);
+}
+
+#endif
+
+#ifndef PI_LIB_SENSORS
+#define PI_LIB_SENSORS
+
+#endif
+
+#ifndef PI_LIB_RS232
+#define PI_LIB_RS232
 
 #ifndef JUNIOR_RS232_BPS
 #define JUNIOR_RS232_BPS 38400
-#endif
-
-#ifndef JUNIOR_BOOTLOADER_AWARE
-# define JUNIOR_BOOTLOADER_AWARE 0
-#endif
-
-#ifndef JUNIOR_RS232_SIGNAL
-#define JUNIOR_RS232_SIGNAL USART
 #endif
 
 #ifndef JUNIOR_RS232_TXBUF
@@ -68,17 +170,14 @@ void setLeftMotor(int speed);
 # error Nastavte symbol JUNIOR_RS232_BPS na rychlost, s jakou chcete komunikovat (napr. 115200).
 #endif
 
-#if JUNIOR_BOOTLOADER_AWARE
-void clean();
-#endif
 
 void setMotorPower(int16_t left, int16_t right);
 
 inline void force_wd_reset()
 {
     //TODO: THIS SHOULD NOT BE HERE, BUT BOOTLOADER WONT STOP PWM ON 3PI
-    setMotorPower(0, 0);
-    
+    clean_motors();
+
     cli();
 #if defined(WDTCR)
     WDTCR = (1<<WDCE)|(1<<WDE);
@@ -153,7 +252,6 @@ private:
 };
 
 }
-
 
 namespace detail {
 
@@ -311,18 +409,12 @@ inline void init_rs232()
     // Initialize the RS232 line
     UCSR0A = (1<<U2X0);
     UCSR0C = (1<<UCSZ01)|(1<<UCSZ00);
-
-//    #define JUNIOR_UBRR ((F_CPU/(8* JUNIOR_RS232_BPS)) - 1)
 #define JUNIOR_UBRR ((F_CPU + 4 * JUNIOR_RS232_BPS) / (8 * JUNIOR_RS232_BPS) - 1)
-
     UBRR0H = JUNIOR_UBRR >> 8;
     UBRR0L = JUNIOR_UBRR;
     UCSR0B = (1<<RXEN0)|(1<<TXEN0)|(1<<RXCIE0);
 }
 
-inline void stop_rs232()
-{
-}
 
 inline void clean_rs232()
 {
@@ -358,113 +450,74 @@ ISR(USART_UDRE_vect)
         UCSR0B &= ~(1<<UDRIE0);
 }
 
+#endif
 
+#ifndef PI_LIB_I2C
+#define PI_LIB_I2C
 
-void init_motors()
-{
+//TODO
 
-	/*  40 kHz operation (3pi, Orangutan SV and SVP, and Baby Orangutan B can handle this, Orangutan LV cannot)
-	*** Note that using these settings will break OrangutanTime and QTRsensors ***
-	// configure for inverted phase-correct PWM output on motor control pins:   
-    //  set OCxx on compare match, clear on timer overflow   
-    //  Timer0 and Timer2 count up from 0 to 255 and then counts back down to 0  
-    TCCR0A = TCCR2A = 0xF1;
-  
-    // use the system clock (=20 MHz) as the timer clock,
-	// which will produce a PWM frequency of 39 kHz (because of phase-correct mode)
-    TCCR0B = TCCR2B = 0x01;
-	*/
+#endif
 
-	// configure for inverted fast PWM output on motor control pins:   
-    //  set OCxx on compare match, clear on timer overflow   
-    //  Timer0 and Timer2 counts up from 0 to 255 and then overflows directly to 0   
-    TCCR0A = TCCR2A = 0xF3;
-  
-    // use the system clock/8 (=2.5 MHz) as the timer clock,
-	// which will produce a PWM frequency of 10 kHz
-    TCCR0B = TCCR2B = 0x02;
+#ifndef PI_LIB_INIT
+#define PI_LIB_INIT
 
-	// use the system clock (=20 MHz) as the timer clock,
-	// which will produce a PWM frequency of 78 kHz.  The Baby Orangutan B
-	// and 3Pi can support PWM frequencies this high.  The
-	// Orangutan LV-168 cannot support frequencies above 10 kHz.
-    //TCCR0B = TCCR2B = 0x01;
-
-    // initialize all PWMs to 0% duty cycle (braking)   
-    OCR0A = OCR0B = OCR2A = OCR2B = 0;
-	
-	DDRD |= (1 << PIN5) | (1 << PIN6)| (1 << PIN3);
-	DDRB |= (1 << PIN3);
-	PORTD &= ~(1 << PIN5);
-	PORTD &= ~(1 << PIN6);
-	PORTD &= ~(1 << PIN3);
-	PORTB &= ~(1 << PIN3);
-	
-}
-
-void setRightMotor(int16_t speed)
-{
-    unsigned char reverse = 0;
-    //TODO: I think front is the part with display, but IR sensors are on opposite side.
-    // comment this if you need
-    speed *= -1;
-	if (speed < 0)
-	{
-		speed = -speed;	// make speed a positive quantity
-		reverse = 1;	// preserve the direction
-	}
-	if (speed > 0xFF)	// 0xFF = 255
-		speed = 0xFF;
-
-	if (reverse)
-	{
-		OCR0B = 0;		// hold one driver input high
-		OCR0A = speed;	// pwm the other input
-	}
-	else	// forward
-	{
-		OCR0B = speed;	// pwm one driver input
-		OCR0A = 0;		// hold the other driver input high
-	}
-}
-
-void setLeftMotor(int16_t speed)
-{
-    unsigned char reverse = 0;
-    //TODO: I think front is the part with display, but IR sensors are on opposite side.
-    // comment this if you need
-    speed *= -1;
-	if (speed < 0)
-	{
-		speed = -speed;	// make speed a positive quantity
-		reverse = 1;	// preserve the direction
-	}
-	if (speed > 0xFF)	// 0xFF = 255
-		speed = 0xFF;
-
-	if (reverse)
-	{
-		OCR2B = 0;		// hold one driver input high
-		OCR2A = speed;	// pwm the other input
-	}
-	else	// forward
-	{
-		OCR2B = speed;	// pwm one driver input
-		OCR2A = 0;		// hold the other driver input high
-	}
-}
-
-void setMotorPower(int16_t left, int16_t right)
-{
-    setLeftMotor(left);
-    setRightMotor(right);
-}
 void init()
 {
-    sei();
+#ifdef PI_LIB_TIME
+//    init_timer(); TODO
+#endif
+
+#ifdef PI_LIB_MOTORS
+    init_motors();
+#endif
+
+#ifdef PI_LIB_SENSORS
+//    init_sensors(); TODO
+#endif
+
+#ifdef PI_LIB_RS232
     init_rs232();
-	init_motors();
+#endif
+
+#ifdef PI_LIB_I2C
+//    init_i2c(); TODO
+#endif
 }
 
+void clean()
+{
+#ifdef PI_LIB_TIME
+//    clean_timer(); TODO
+#endif
+
+#ifdef PI_LIB_MOTORS
+    clean_motors();
+#endif
+
+#ifdef PI_LIB_SENSORS
+//    clean_sensors(); TODO
+#endif
+
+#ifdef PI_LIB_RS232
+    clean_rs232();
+#endif
+
+#ifdef PI_LIB_I2C
+//    clean_i2c(); TODO
+#endif
+}
+
+void run();
+
+int main()
+{
+    init();
+    sei();
+    run();
+    cli();
+    clean();
+    return 0;
+}
 
 #endif
