@@ -1,15 +1,3 @@
-enum moveFlags
-{
-    MOVE_NONE         = 0x00,
-    MOVE_FORWARD      = 0x01,
-    MOVE_BACKWARD     = 0x02,
-    MOVE_LEFT         = 0x04,
-    MOVE_RIGHT        = 0x08,
-    MOVE_LEFT_WHEEL   = 0x10,
-    MOVE_RIGHT_WHEEL  = 0x20,
-};
-
-#define TURN_VALUE 50
 
 struct Packet
 {
@@ -36,8 +24,6 @@ Packet pkt;
 volatile uint8_t startItr = 0;
 volatile uint8_t pktItr = 0;
 
-volatile uint16_t speed = 0;
-volatile uint8_t moveflags = 0;
 bool readPacket()
 {
     char c;
@@ -91,8 +77,7 @@ void handlePacket(Packet *pkt)
         case 4:
             setRightMotor(pkt->readInt16(0));
             setLeftMotor(pkt->readInt16(2));
-            display.gotoXY(0, 1);
-            display.printNumber(pkt->readInt16(2));
+            display.printNumToXY(pkt->readInt16(2), 0, 1);
             uint8_t spaces = 8-(GetNumWidth(pkt->readInt16(2))+GetNumWidth(pkt->readInt16(0)));
             for(;spaces > 0; --spaces)
                 display.send_data(' ');
