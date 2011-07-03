@@ -73,7 +73,16 @@ bool readPacket()
     return false;
 }
 
-void SetMovementByFlags();
+uint16_t abs(int16_t n) {return (n < 0) ? -n : n; } 
+
+uint8_t GetNumWidth(int16_t num)
+{
+    uint8_t ret = num < 0 ? 1 : 0;
+    num = abs(num);
+    for(;num >= 10; ++ret)
+        num /= 10;
+    return ret+1;
+}
 
 void handlePacket(Packet *pkt)
 {
@@ -82,6 +91,12 @@ void handlePacket(Packet *pkt)
         case 4:
             setRightMotor(pkt->readInt16(0));
             setLeftMotor(pkt->readInt16(2));
+            display.gotoXY(0, 1);
+            display.printNumber(pkt->readInt16(2));
+            uint8_t spaces = 8-(GetNumWidth(pkt->readInt16(2))+GetNumWidth(pkt->readInt16(0)));
+            for(;spaces > 0; --spaces)
+                display.send_data(' ');
+            display.printNumber(pkt->readInt16(0));
             break;
     }
 }

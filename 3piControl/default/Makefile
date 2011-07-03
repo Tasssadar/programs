@@ -37,7 +37,7 @@ HEX_EEPROM_FLAGS += --change-section-lma .eeprom=0 --no-change-warnings
 
 
 ## Libraries
-LIBS = -lpololu_atmega328p 
+#LIBS = -lpololu_atmega328p 
 
 ## Objects that must be built in order to link
 OBJECTS = 3piControl.o 
