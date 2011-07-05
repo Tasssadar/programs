@@ -1,3 +1,5 @@
+#define PI_LIB_VERSION 9
+
 #ifndef PI_LIB_COMMON
 #define PI_LIB_COMMON
 
@@ -41,38 +43,17 @@ inline void nop()
 #define JUNIOR_CONCAT2(x, y) x ## y
 #define JUNIOR_CONCAT(x, y) JUNIOR_CONCAT2(x, y)
 
-#endif
-
-#ifndef PI_LIB_TIME
-#define PI_LIB_TIME
-
-// Delays for for the specified nubmer of microseconds.
-inline void delayMicroseconds(unsigned int microseconds)
+template <typename T>
+inline T abs(T num)
 {
-    __asm__ volatile (
-        "1: push r22"     "\n\t"
-        "   ldi  r22, 4"  "\n\t"
-        "2: dec  r22"     "\n\t"
-        "   brne 2b"      "\n\t"
-        "   pop  r22"     "\n\t"   
-        "   sbiw %0, 1"   "\n\t"
-        "   brne 1b"
-        : "=w" ( microseconds )  
-        : "0" ( microseconds )
-    );  
+    return (num < 0) ? -num : num;
 }
-inline void delay(uint16_t ms)
-{
-  while (ms--)
-      delayMicroseconds(1000);
-}
-
-// TODO
-
 #endif
 
 #ifndef PI_LIB_MOTORS
 #define PI_LIB_MOTORS
+
+#define MOTORS_ACCELERATION 1
 
 void init_motors()
 {
@@ -100,7 +81,6 @@ void init_motors()
     PORTD &= ~(1 << PIN6);
     PORTD &= ~(1 << PIN3);
     PORTB &= ~(1 << PIN3);
-
 }
 
 void clean_motors()
@@ -111,62 +91,282 @@ void clean_motors()
     TCCR2B = 0;
 }
 
-void setLeftMotor(int16_t speed)
-{
-    unsigned char reverse = 0;
-    if (speed < 0)
-    {
-        speed = -speed; // make speed a positive quantity
-        reverse = 1;    // preserve the direction
-    }
-    if (speed > 0xFF)   // 0xFF = 255
-        speed = 0xFF;
+namespace detail
+{  
+    volatile int16_t g_speed[2] = {0, 0};
+    volatile int16_t g_speed_cur[2] = {0, 0};
+    volatile bool g_need_set_speed[2] = {false, false};
+    volatile bool g_soft_speed_set = true;
 
-    if (reverse)
+    void setLeftMotor(int16_t speed)
     {
-        OCR0B = 0;      // hold one driver input high
-        OCR0A = speed;  // pwm the other input
+        bool reverse = false;
+        if (speed < 0)
+        {
+            speed = -speed; // make speed a positive quantity
+            reverse = true;    // preserve the direction
+        }
+        if (speed > 0xFF)   // 0xFF = 255
+            speed = 0xFF;
+
+        if (reverse)
+        {
+            OCR0B = 0;      // hold one driver input high
+            OCR0A = speed;  // pwm the other input
+        }
+        else    // forward
+        {
+            OCR0B = speed;  // pwm one driver input
+            OCR0A = 0;      // hold the other driver input high
+        }
     }
-    else    // forward
+
+    void setRightMotor(int16_t speed)
     {
-        OCR0B = speed;  // pwm one driver input
-        OCR0A = 0;      // hold the other driver input high
+        bool reverse = false;
+        if (speed < 0)
+        {
+            speed = -speed; // make speed a positive quantity
+            reverse = true;    // preserve the direction
+        }
+        if (speed > 0xFF)   // 0xFF = 255
+            speed = 0xFF;
+
+        if (reverse)
+        {
+            OCR2B = 0;      // hold one driver input high
+            OCR2A = speed;  // pwm the other input
+        }
+        else    // forward
+        {
+            OCR2B = speed;  // pwm one driver input
+            OCR2A = 0;      // hold the other driver input high
+        }
     }
 }
 
 void setRightMotor(int16_t speed)
 {
-    unsigned char reverse = 0;
-    if (speed < 0)
+    if(detail::g_soft_speed_set)
     {
-        speed = -speed; // make speed a positive quantity
-        reverse = 1;    // preserve the direction
+        detail::g_speed[1] = speed;
+        detail::g_need_set_speed[1] = true;
     }
-    if (speed > 0xFF)   // 0xFF = 255
-        speed = 0xFF;
-
-    if (reverse)
-    {
-        OCR2B = 0;      // hold one driver input high
-        OCR2A = speed;  // pwm the other input
-    }
-    else    // forward
-    {
-        OCR2B = speed;  // pwm one driver input
-        OCR2A = 0;      // hold the other driver input high
-    }
+    else
+        detail::setRightMotor(speed);
 }
 
-void setMotorPower(int16_t left, int16_t right)
+void setLeftMotor(int16_t speed)
+{
+    if(detail::g_soft_speed_set)
+    {
+        detail::g_speed[0] = speed;
+        detail::g_need_set_speed[0] = true;
+    }
+    else
+        detail::setLeftMotor(speed);
+}
+
+void setMotorPowerID(uint8_t motor, int16_t speed)
+{
+    if(motor)
+        detail::setRightMotor(speed);
+    else
+        detail::setLeftMotor(speed);
+}
+
+inline void setMotorPower(int16_t left, int16_t right)
 {
     setLeftMotor(left);
     setRightMotor(right);
+}
+
+inline void setSoftAccel(bool enabled)
+{
+    detail::g_soft_speed_set = enabled;
+}
+
+#endif
+
+#ifndef PI_LIB_TIME
+#define PI_LIB_TIME
+
+// Delays for for the specified nubmer of microseconds.
+inline void delayMicroseconds(uint16_t microseconds)
+{
+    __asm__ volatile (
+        "1: push r22"     "\n\t"
+        "   ldi  r22, 4"  "\n\t"
+        "2: dec  r22"     "\n\t"
+        "   brne 2b"      "\n\t"
+        "   pop  r22"     "\n\t"   
+        "   sbiw %0, 1"   "\n\t"
+        "   brne 1b"
+        : "=w" ( microseconds )  
+        : "0" ( microseconds )
+    );  
+}
+
+inline void delay(uint16_t ms)
+{
+    while (ms--)
+      delayMicroseconds(1000);
+}
+
+uint32_t g_timer = 0;
+
+uint32_t getTicksCount()
+{
+    cli();
+    uint32_t time = g_timer;
+    sei();
+    return time;
+}
+
+void resetTicks()
+{
+    cli();
+    g_timer = 0;
+    sei();
+}
+
+void init_timer()
+{ 
+    // Setup timer to 1 ms
+    TCCR1B = (1 << WGM12) | (1 << CS11);
+    
+    OCR1AH = (2500 >> 8);
+    OCR1AL = (2500 & 0xFF);
+    
+    TIMSK1 |=(1<<OCIE1A);
+}
+
+void clean_timer()
+{
+    TCCR1A = 0;
+    TCCR1B = 0;
+}
+
+ISR(TIMER1_COMPA_vect)
+{  
+   ++g_timer;
+   
+   for(uint8_t i = 0; i < 2; ++i)
+   {
+       if(!detail::g_need_set_speed[i])
+           continue;
+       
+       if(detail::g_speed[i] == detail::g_speed_cur[i])
+       {
+           detail::g_need_set_speed[i] = false;
+           continue;
+       }
+       
+       int16_t val = abs(detail::g_speed[i]-detail::g_speed_cur[i]);
+       if(val >= MOTORS_ACCELERATION)
+           val = MOTORS_ACCELERATION;
+       
+       if(detail::g_speed[i] < detail::g_speed_cur[i])
+           val *= -1;
+       detail::g_speed_cur[i] += val;
+       setMotorPowerID(i, detail::g_speed_cur[i]);
+   }
 }
 
 #endif
 
 #ifndef PI_LIB_SENSORS
 #define PI_LIB_SENSORS
+
+// LOW_BATTERY = (((low_voltage_in_mv*2-1)/3)*1023-511)/5000;
+// Current setting is 5000mV
+//#define LOW_BATTERY 681
+
+struct ground_sensors_t
+{
+    uint16_t value[6];
+};
+
+volatile struct ground_sensors_t g_sensors;
+uint16_t g_threshold = 512;
+ISR(ADC_vect)
+{
+    static uint8_t currentSensor = 0;
+    static bool initSensor = false;
+    static const uint8_t sensorMap[6] = { 0, 1, 2, 3, 4, 6 };
+    
+    if (initSensor)
+    {
+        uint8_t adcl = ADCL;
+        uint8_t adch = ADCH;
+        
+        uint16_t value = (adch << 8) | (adcl);
+        g_sensors.value[currentSensor++] = value;
+
+        if(currentSensor == 6)
+            currentSensor = 0;
+        
+        ADMUX = (1<<REFS0)|sensorMap[currentSensor];
+    }
+    
+    initSensor = !initSensor;
+    
+    // Start the next conversion
+    ADCSRA |= (1<<ADSC);
+}
+
+void init_sensors()
+{
+    DIDR0 = (1<<ADC0D)|(1<<ADC1D)|(1<<ADC2D)|(1<<ADC3D)|(1<<ADC4D)|(1<<ADC5D);
+    ADCSRA = (1<<ADEN)|(1<<ADSC)|(1<<ADIF)|(1<<ADIE)|(1<<ADPS2)|(1<<ADPS1)|(1<<ADPS0);
+    ADCSRB = 0;
+    
+    ADMUX = (1<<REFS0);
+    PORTC |= (1 << 0)|(1 << 1)|(1 << 2)|(1 << 3)|(1 << 4)|(1 << 5);
+    
+    g_sensors.value[0] = 1024;
+    g_sensors.value[1] = 1024;
+    g_sensors.value[2] = 1024;
+    g_sensors.value[3] = 1024;
+    g_sensors.value[4] = 1024;
+    g_sensors.value[5] = 1024;
+}
+
+void clean_sensors()
+{
+    ADCSRA = 0;
+}
+
+inline int16_t getSensorValue(uint8_t index, bool threshold = true)
+{
+    cli();
+    while (g_sensors.value[index] == 1024)
+    {
+        sei();
+        nop();
+        cli();
+    }
+    int16_t res = g_sensors.value[index];
+    if(threshold) res -= g_threshold;
+    sei();
+    nop();
+
+    return res; 
+}
+
+inline void calibrate_sensors()
+{
+    uint32_t avg = 0;
+    for(uint8_t i = 0; i < 5; ++i)
+        avg += getSensorValue(i);
+    
+    g_threshold = (uint16_t) (avg / 5);
+}
+
+inline uint16_t getBatteryVoltage()
+{
+    return (((uint32_t(getSensorValue(5, false))*5000+511)/1023)*3+1)/2;
+}
 
 #endif
 
@@ -333,6 +533,7 @@ void setMotorPower(int16_t left, int16_t right)
 #define LCD_RIGHT       1
 #define CURSOR_SOLID    0
 #define CURSOR_BLINKING 1
+#define LCD_CGRAM       6
 
 namespace detail
 {
@@ -365,6 +566,131 @@ public:
         send_cmd(0x0C);    // display on, cursor off, blinking off
     }
 
+    void showCursor(uint8_t cursorType)
+    {
+        if (cursorType == CURSOR_BLINKING)
+            send_cmd(LCD_SHOW_BLINK);
+        else
+            send_cmd(LCD_SHOW_SOLID);
+    }
+    
+    // shifts the cursor LEFT or RIGHT the given number of positions.
+    // direction should be either LCD_LEFT or LCD_RIGHT
+    void moveCursor(uint8_t direction, uint8_t num)
+    {
+        while(num-- > 0)
+        {
+            if (direction == LCD_LEFT)
+                send_cmd(LCD_CURSOR_L);
+            else
+                send_cmd(LCD_CURSOR_R);
+        }
+    }
+    
+    // shifts the display LEFT or RIGHT the given number of
+    // positions, delaying for delay_time milliseconds between each shift.
+    // This is what you'd use for a scrolling display.
+    // direction should be either LCD_LEFT or LCD_RIGHT
+    void scroll(uint8_t direction, uint8_t num, uint16_t delay_time)
+    {
+        while(num--)
+        {
+            if (direction == LCD_LEFT)
+                send_cmd(LCD_SHIFT_L);
+            else
+                send_cmd(LCD_SHIFT_R);
+            delay(delay_time);
+        }
+    }
+    
+    // moves the cursor to the specified (x, y) position
+    // x is a zero-based column indicator (0 <= x <= 7)
+    // y is a zero-based row indicator (0 <= y <= LCD rows-1)
+    void gotoXY(uint8_t x, uint8_t y)
+    {
+        // Memory locations for the start of each line
+        // The actual memory locations are 0x00, and 0x40, but since
+        // D7 needs to be high in order to set a new memory location, we can go
+        // ahead and make the seventh bit of our memory location bytes to 1,
+        // which makes the numbers 0x80 and 0xC0:
+
+        unsigned char line_mem[] = {0x80, 0xC0, 0x94, 0xD4};
+
+        // Grab the location in the LCD's memory of the start of line y,
+        // and add X to it to get the right character location.
+        send_cmd(line_mem[y] + x);
+    }
+    
+    inline void print(const char *str)
+    {
+        while (*str != 0)
+            send_data(*str++);
+    }
+    
+    template <typename T>
+    void printNumber(T n, uint8_t width = 0)
+    {
+        char buf[32];
+        uint8_t len = 0;
+
+        if (n != 0)
+        {
+            T a = (n < 0)? -n: n;
+
+            while (a > 0)
+            {
+                T b = a / 10;
+                buf[len++] = '0' + (a - b * 10);
+                a = b;
+            }
+
+            if (n < 0)
+                buf[len++] = '-';
+        }
+        else
+            buf[len++] = '0';
+
+        for (; width > len; --width)
+            send_data(' ');
+        
+        for (; len > 0; --len)
+            send_data(buf[len-1]);
+    }
+    
+    void loadCustomCharacter(const char *picture_p, uint8_t number)
+    {
+        // Each character takes up 8 bytes of the character memory, so we
+        // multiply by 8 to get the address.
+        number *= 8;
+
+        for(uint8_t i = 0; i < 8; ++i)
+        {
+            // set CG RAM address
+            send_cmd((1<<LCD_CGRAM) | (number+i));
+
+            // write character data
+            send_data(picture_p[i]);
+        }
+    }
+    
+    inline void clear() { send_cmd(LCD_CLEAR); }
+    inline void send_cmd(uint8_t cmd) { send(cmd, 0, 2); }
+    inline void send_4bit_cmd(uint8_t cmd) { send(cmd, 0, 1); }
+    inline void send_data(uint8_t data) { send(data, 1, 2); }
+    inline void hideCursor() { send_cmd(LCD_HIDE);}
+    inline void printToXY(const char *str, uint8_t x, uint8_t y)
+    {
+        gotoXY(x, y);
+        print(str);
+    }
+    template <typename T>
+    inline void printNumToXY(T num, uint8_t x, uint8_t y)
+    {
+        gotoXY(x, y);
+        printNumber(num);
+    }
+
+private:
     // Wait for the busy flag to clear.  The 4-bit interface is
     // more complicated than the 8-bit interface because E must
     // be strobed twice to get the full eight bits back from
@@ -500,115 +826,7 @@ public:
         PORTD = temp_portd;
         DDRB = temp_ddrb;
         PORTB = temp_portb;
-    }
-    
-    void showCursor(uint8_t cursorType)
-    {
-        if (cursorType == CURSOR_BLINKING)
-            send_cmd(LCD_SHOW_BLINK);
-        else
-            send_cmd(LCD_SHOW_SOLID);
-    }
-    
-    // shifts the cursor LEFT or RIGHT the given number of positions.
-    // direction should be either LCD_LEFT or LCD_RIGHT
-    void moveCursor(uint8_t direction, uint8_t num)
-    {
-        while(num-- > 0)
-        {
-            if (direction == LCD_LEFT)
-                send_cmd(LCD_CURSOR_L);
-            else
-                send_cmd(LCD_CURSOR_R);
-        }
-    }
-    
-    // shifts the display LEFT or RIGHT the given number of
-    // positions, delaying for delay_time milliseconds between each shift.
-    // This is what you'd use for a scrolling display.
-    // direction should be either LCD_LEFT or LCD_RIGHT
-    void scroll(uint8_t direction, uint8_t num, uint16_t delay_time)
-    {
-        while(num--)
-        {
-            if (direction == LCD_LEFT)
-                send_cmd(LCD_SHIFT_L);
-            else
-                send_cmd(LCD_SHIFT_R);
-            delay(delay_time);
-        }
-    }
-    
-    // moves the cursor to the specified (x, y) position
-    // x is a zero-based column indicator (0 <= x <= 7)
-    // y is a zero-based row indicator (0 <= y <= LCD rows-1)
-    void gotoXY(uint8_t x, uint8_t y)
-    {
-        // Memory locations for the start of each line
-        // The actual memory locations are 0x00, and 0x40, but since
-        // D7 needs to be high in order to set a new memory location, we can go
-        // ahead and make the seventh bit of our memory location bytes to 1,
-        // which makes the numbers 0x80 and 0xC0:
-
-        unsigned char line_mem[] = {0x80, 0xC0, 0x94, 0xD4};
-
-        // Grab the location in the LCD's memory of the start of line y,
-        // and add X to it to get the right character location.
-        send_cmd(line_mem[y] + x);
-    }
-    
-    inline void print(const char *str)
-    {
-        while (*str != 0)
-            send_data(*str++);
-    }
-    
-    template <typename T>
-    void printNumber(T n, uint8_t width = 0)
-    {
-        char buf[32];
-        uint8_t len = 0;
-
-        if (n != 0)
-        {
-            T a = (n < 0)? -n: n;
-
-            while (a > 0)
-            {
-                T b = a / 10;
-                buf[len++] = '0' + (a - b * 10);
-                a = b;
-            }
-
-            if (n < 0)
-                buf[len++] = '-';
-        }
-        else
-            buf[len++] = '0';
-
-        for (; width > len; --width)
-            send_data(' ');
-        
-        for (; len > 0; --len)
-            send_data(buf[len-1]);
-    }
-    
-    inline void clear() { send_cmd(LCD_CLEAR); }
-    inline void send_cmd(uint8_t cmd) { send(cmd, 0, 2); }
-    inline void send_4bit_cmd(uint8_t cmd) { send(cmd, 0, 1); }
-    inline void send_data(uint8_t data) { send(data, 1, 2); }
-    inline void hideCursor() { send_cmd(LCD_HIDE);}
-    inline void printToXY(const char *str, uint8_t x, uint8_t y)
-    {
-        gotoXY(x, y);
-        print(str);
-    }
-    template <typename T>
-    inline void printNumToXY(T num, uint8_t x, uint8_t y)
-    {
-        gotoXY(x, y);
-        printNumber(num);
-    }
+    } 
 }; // class Display
 } // namespace detail
 
@@ -643,9 +861,6 @@ void clean_display()
 #ifndef JUNIOR_RS232_BPS
 # error Nastavte symbol JUNIOR_RS232_BPS na rychlost, s jakou chcete komunikovat (napr. 115200).
 #endif
-
-
-void setMotorPower(int16_t left, int16_t right);
 
 inline void force_wd_reset()
 {
@@ -935,13 +1150,72 @@ ISR(USART_UDRE_vect)
 
 #endif
 
+#ifndef PI_LIB_BUTTONS
+#define PI_LIB_BUTTONS
+
+#define BUTTON_C        (1 << PORTB5)
+#define BUTTON_B        (1 << PORTB4)
+#define BUTTON_A        (1 << PORTB1)
+#define ALL_BUTTONS     (BUTTON_A | BUTTON_B | BUTTON_C)
+
+void init_buttons()
+{
+    DDRB &= ~ALL_BUTTONS;
+    PORTB |= ALL_BUTTONS;
+}
+
+void clean_buttons()
+{
+    PORTB &= ~ALL_BUTTONS;
+}
+
+inline bool isPressed(uint8_t buttons)
+{
+    return !(PINB & buttons);
+}
+
+inline uint8_t waitForPress(uint8_t buttons)
+{
+    while(PINB & buttons)
+        JUNIOR_DO_IDLE();
+    return ((~PINB) & buttons);       // return the pressed button(s)
+}
+
+inline uint8_t waitForRelease(uint8_t buttons)
+{
+    while(!(PINB & buttons))
+        JUNIOR_DO_IDLE();
+    return (PINB & buttons);          // return the pressed button(s)
+}
+
+inline void waitForButton(uint8_t buttons)
+{
+    do
+    {
+        while(!isPressed(buttons))
+            JUNIOR_DO_IDLE();
+        delay(5);
+    } while(!isPressed(buttons));
+    
+    delay(50);
+    
+    do
+    {
+        while(isPressed(buttons))
+            JUNIOR_DO_IDLE();
+        delay(5);
+    } while(isPressed(buttons));
+}
+
+#endif
+
 #ifndef PI_LIB_INIT
 #define PI_LIB_INIT
 
 void init()
 {
 #ifdef PI_LIB_TIME
-//    init_timer(); TODO
+    init_timer();
 #endif
 
 #ifdef PI_LIB_MOTORS
@@ -949,7 +1223,7 @@ void init()
 #endif
 
 #ifdef PI_LIB_SENSORS
-//    init_sensors(); TODO
+    init_sensors();
 #endif
 
 #ifdef PI_LIB_DISPLAY
@@ -963,12 +1237,16 @@ void init()
 #ifdef PI_LIB_I2C
 //    init_i2c(); TODO
 #endif
+
+#ifdef PI_LIB_BUTTONS
+    init_buttons();
+#endif   
 }
 
 void clean()
 {
 #ifdef PI_LIB_TIME
-//    clean_timer(); TODO
+    clean_timer();
 #endif
 
 #ifdef PI_LIB_MOTORS
@@ -976,7 +1254,7 @@ void clean()
 #endif
 
 #ifdef PI_LIB_SENSORS
-//    clean_sensors(); TODO
+    clean_sensors();
 #endif
 
 #ifdef PI_LIB_DISPLAY
@@ -990,6 +1268,10 @@ void clean()
 #ifdef PI_LIB_I2C
 //    clean_i2c(); TODO
 #endif
+
+#ifdef PI_LIB_BUTTONS
+    clean_buttons();
+#endif   
 }
 
 void run();
