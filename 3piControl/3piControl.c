@@ -39,23 +39,35 @@ void run()
     display.loadCustomCharacter(levels+5,4);
     display.loadCustomCharacter(levels+6,5);
      
-    uint16_t displayTimer = 100;  
+    uint16_t displayTimer = 100;
     while(true)
     { 
-        if(!displayTimer)
+       if(!displayTimer)
         {
+            rs232.wait();
+            rs232.sendCharacter('\f');
             if(!displaySensors)
             {
                 display.printNumToXY(getBatteryVoltage(), 0, 0);
                 display.print("mV ");
+                rs232.sendNumber(getBatteryVoltage());
+                rs232.send(" mV");
                 display.printNumber(uint8_t(accel));
                 displayTimer = 500;
             }
             else
             {
                 display.gotoXY(0,0);
+                int16_t value;
                 for(uint8_t i = 0; i < 5; ++i)
-                    display.send_data(bar_graph_characters[getSensorValue(i, false)/103]);
+                {
+                    value = getSensorValue(i, false);
+                    display.send_data(bar_graph_characters[value/103]);
+                    rs232.sendNumber(i);
+                    rs232.send(": ");
+                    rs232.sendNumber(value, 4);
+                    rs232.send("\r\n");
+                }
                 display.print("   ");
                 displayTimer = 100;
             }

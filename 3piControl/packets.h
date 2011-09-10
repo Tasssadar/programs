@@ -75,6 +75,7 @@ void handlePacket(Packet *pkt)
     switch(pkt->m_opcode)
     {
         case 4:
+        {
             setRightMotor(pkt->readInt16(0));
             setLeftMotor(pkt->readInt16(2));
             display.printNumToXY(pkt->readInt16(2), 0, 1);
@@ -83,5 +84,6 @@ void handlePacket(Packet *pkt)
                 display.send_data(' ');
             display.printNumber(pkt->readInt16(0));
             break;
+        }
     }
 }
