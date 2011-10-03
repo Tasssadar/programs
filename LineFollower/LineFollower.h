@@ -6,7 +6,7 @@
 
 volatile uint8_t speeds[3] =
 {
-    150, // max speed
+    50, // max speed
     70,
     0,
 };
@@ -58,10 +58,9 @@ void showSpeed(bool tors232 = true)
     if(tors232)
         rs232.dumpNumber(speeds[0]);
 
-    display.gotoXY(0,0);
-    display.printNumber(speeds[0]);
+    display.printNumToXY(speeds[0], 4, 1);
     display.print(" ");
-    display.printNumber(getBatteryVoltage());
+    display.printNumToXY(getBatteryVoltage(), 4, 0);
 }
 
 void checkStart()

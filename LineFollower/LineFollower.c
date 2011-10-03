@@ -40,7 +40,7 @@ void follow()
 
         if(value_cur == 1024)
             value_cur = 0;
-        else if(value_cur > 200)
+        else if(value_cur > 910)
             on_line = true;
 
         if(value_cur > 50)
@@ -48,7 +48,8 @@ void follow()
             avg += uint32_t(value_cur) * (i * 1000);
             sum += value_cur;
         }
-     //   rs232.dumpNumber(value_cur);
+        rs232.sendNumber(value_cur, 4);
+        rs232.sendCharacter(' ');
     }
 
     if(sum == 0)
@@ -58,9 +59,8 @@ void follow()
     if(!on_line)
     {
         // If it last read to the left of center, return 0.
-        if(last_value < 1500)
+        if(last_value < 2000)
             position = 0;
-
         // If it last read to the right of center, return the max.
         else
             position = 4000;
@@ -71,9 +71,11 @@ void follow()
         position = last_value;
     }
 
-    /*rs232.dumpNumber(position);
+    rs232.sendNumber(position, 4);
+    rs232.sendCharacter(' ');
+    rs232.sendNumber(last_value, 4);
     rs232.send("\r\n");
-    rs232.wait();*/
+    rs232.wait();
     
     followTimer = 1;//10;
 

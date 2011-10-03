@@ -515,7 +515,7 @@ inline int16_t getSensorValue(uint8_t index, bool threshold = true)
 
         int16_t val = res;
         if(denominator)
-            val = int32_t(res - g_calibratedMinimum[index])*1024/denominator;
+            val = int32_t(res - g_calibratedMinimum[index])*1000/denominator;
         if(val < 0)
             res = 0;
         else if(val > 1024)
